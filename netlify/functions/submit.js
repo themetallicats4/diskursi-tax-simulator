@@ -84,6 +84,29 @@ export async function handler(event) {
             consent_analytics: !!payload.consent_analytics,
             client_fingerprint: payload.client_fingerprint || null,
         };
+        console.log("DEBUG fingerprint:", row.client_fingerprint);
+
+        // Simple rate limit: 1 submission per 30 seconds per fingerprint
+        if (row.client_fingerprint) {
+            const { data: recent, error: recentErr } = await supabase
+                .from("tax_sim_submissions")
+                .select("created_at")
+                .eq("client_fingerprint", row.client_fingerprint)
+                .order("created_at", { ascending: false })
+                .limit(1);
+
+            if (!recentErr && recent && recent.length > 0) {
+                const last = new Date(recent[0].created_at).getTime();
+                const now = Date.now();
+                if (now - last < 30 * 1000) {
+                    return {
+                        statusCode: 429,
+                        body: JSON.stringify({ ok: false, error: "Too many submissions. Please wait a bit." }),
+                    };
+                }
+            }
+        }
+
 
         const { error } = await supabase.from("tax_sim_submissions").insert([row]);
 
