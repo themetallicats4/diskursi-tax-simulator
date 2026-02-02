@@ -20,6 +20,29 @@ function clamp(n, min, max) {
   return Math.max(min, Math.min(max, n));
 }
 
+function getClientFingerprint() {
+  try {
+    const key = "diskursi_fp_v1";
+
+    let fp = localStorage.getItem(key);
+    if (!fp) {
+      // Create a random ID once
+      if (crypto.randomUUID) {
+        fp = crypto.randomUUID();
+      } else {
+        fp = String(Math.random()).slice(2) + Date.now();
+      }
+      localStorage.setItem(key, fp);
+    }
+
+    return fp;
+  } catch (e) {
+    // If localStorage is blocked (very rare), return null
+    return null;
+  }
+}
+
+
 function formatTL(n) {
   // 120000 -> 120.000
   return new Intl.NumberFormat("tr-TR").format(n);
@@ -386,7 +409,8 @@ export default function App() {
       result_tl_max: computed.result_tl_max,
 
       consent_analytics: consent,
-      client_fingerprint: null,
+      client_fingerprint: getClientFingerprint(),
+
     };
 
     try {
