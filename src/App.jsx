@@ -25,6 +25,147 @@ function formatTL(n) {
   return new Intl.NumberFormat("tr-TR").format(n);
 }
 
+function downloadDataUrl(dataUrl, filename) {
+  const a = document.createElement("a");
+  a.href = dataUrl;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+}
+
+function generateShareCardDataUrl(result) {
+  // Canvas size optimized for Instagram story-ish screenshots (works anywhere)
+  const W = 1080;
+  const H = 1080;
+
+  const canvas = document.createElement("canvas");
+  canvas.width = W;
+  canvas.height = H;
+  const ctx = canvas.getContext("2d");
+
+  // Background
+  ctx.fillStyle = BRAND.cream;
+  ctx.fillRect(0, 0, W, H);
+
+  // Card container
+  const pad = 80;
+  const cardX = pad;
+  const cardY = pad;
+  const cardW = W - pad * 2;
+  const cardH = H - pad * 2;
+
+  // Rounded rectangle helper
+  function roundRect(x, y, w, h, r) {
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.arcTo(x + w, y, x + w, y + h, r);
+    ctx.arcTo(x + w, y + h, x, y + h, r);
+    ctx.arcTo(x, y + h, x, y, r);
+    ctx.arcTo(x, y, x + w, y, r);
+    ctx.closePath();
+  }
+
+  // Shadow
+  ctx.fillStyle = "rgba(0,0,0,0.10)";
+  roundRect(cardX + 10, cardY + 12, cardW, cardH, 32);
+  ctx.fill();
+
+  // Card
+  ctx.fillStyle = "#FFFFFF";
+  roundRect(cardX, cardY, cardW, cardH, 32);
+  ctx.fill();
+
+  // Header bar
+  ctx.fillStyle = BRAND.red;
+  roundRect(cardX, cardY, cardW, 120, 32);
+  ctx.fill();
+
+  // Diskursi title
+  ctx.fillStyle = "#FFFFFF";
+  ctx.font = "800 46px system-ui, -apple-system, Segoe UI, Roboto, Arial";
+  ctx.fillText("Diskursi", cardX + 44, cardY + 78);
+
+  // Subtitle
+  ctx.fillStyle = "rgba(255,255,255,0.92)";
+  ctx.font = "600 26px system-ui, -apple-system, Segoe UI, Roboto, Arial";
+  ctx.fillText("Vergi Yükü Simülasyonu (yaklaşık)", cardX + 44, cardY + 108);
+
+  // Main numbers
+  const pctText = `%${result.result_tax_pct_min} – %${result.result_tax_pct_max}`;
+  const tlText = `${formatTL(result.result_tl_min)} – ${formatTL(result.result_tl_max)} TL / yıl`;
+
+  ctx.fillStyle = BRAND.text;
+  ctx.font = "900 86px system-ui, -apple-system, Segoe UI, Roboto, Arial";
+  ctx.fillText(pctText, cardX + 44, cardY + 260);
+
+  ctx.fillStyle = "#333";
+  ctx.font = "700 36px system-ui, -apple-system, Segoe UI, Roboto, Arial";
+  ctx.fillText(tlText, cardX + 44, cardY + 320);
+
+  // Aha line
+  const monthsMin = Math.round((result.result_tax_pct_min / 100) * 12);
+  const monthsMax = Math.round((result.result_tax_pct_max / 100) * 12);
+  const aha = `Bu, yılda yaklaşık ${monthsMin}–${monthsMax} ay “vergiler için çalışmak” gibi.`;
+
+  ctx.fillStyle = BRAND.orange;
+  ctx.font = "800 32px system-ui, -apple-system, Segoe UI, Roboto, Arial";
+  wrapText(ctx, aha, cardX + 44, cardY + 410, cardW - 88, 40);
+
+  // Details box
+  const boxY = cardY + 520;
+  ctx.fillStyle = "rgba(185, 28, 28, 0.08)";
+  roundRect(cardX + 44, boxY, cardW - 88, 340, 22);
+  ctx.fill();
+
+  ctx.fillStyle = BRAND.text;
+  ctx.font = "800 30px system-ui, -apple-system, Segoe UI, Roboto, Arial";
+  ctx.fillText("Girdi özeti", cardX + 72, boxY + 60);
+
+  ctx.fillStyle = "#444";
+  ctx.font = "600 28px system-ui, -apple-system, Segoe UI, Roboto, Arial";
+
+  const lines = [
+    `Net gelir aralığı: ${result.incomeLabel}`,
+    `Harcama dağılımı: Gıda ${result.food}%, Kira ${result.rent}%, Ulaşım ${result.transport}%, Diğer ${result.other}%`,
+    `Araba: ${result.hasCar ? "Var" : "Yok"} · Sigara: ${result.smokes ? "Var" : "Yok"} · Alkol: ${result.drinksAlcohol ? "Var" : "Yok"
+    }`,
+  ];
+
+  let y = boxY + 115;
+  for (const line of lines) {
+    wrapText(ctx, line, cardX + 72, y, cardW - 140, 36);
+    y += 74;
+  }
+
+  // Footer
+  ctx.fillStyle = "#666";
+  ctx.font = "600 22px system-ui, -apple-system, Segoe UI, Roboto, Arial";
+  ctx.fillText("diskursi · anonim tahmin · v1", cardX + 44, cardY + cardH - 44);
+
+  return canvas.toDataURL("image/png");
+}
+
+// helper: wrap text onto multiple lines
+function wrapText(ctx, text, x, y, maxWidth, lineHeight) {
+  const words = text.split(" ");
+  let line = "";
+  for (let n = 0; n < words.length; n++) {
+    const testLine = line + words[n] + " ";
+    const metrics = ctx.measureText(testLine);
+    const testWidth = metrics.width;
+    if (testWidth > maxWidth && n > 0) {
+      ctx.fillText(line, x, y);
+      line = words[n] + " ";
+      y += lineHeight;
+    } else {
+      line = testLine;
+    }
+  }
+  ctx.fillText(line, x, y);
+}
+
+
 function Card({ children }) {
   return (
     <div
@@ -390,7 +531,10 @@ export default function App() {
               </button>
 
               <button
-                onClick={() => alert("Next step: Share-card generator (Step 14).")}
+                onClick={() => {
+                  const dataUrl = generateShareCardDataUrl(result);
+                  downloadDataUrl(dataUrl, "diskursi-vergi-sonuc.png");
+                }}
                 style={{
                   padding: "12px 14px",
                   borderRadius: 12,
@@ -401,8 +545,9 @@ export default function App() {
                   fontWeight: 900,
                 }}
               >
-                Paylaşılabilir görsel oluştur (yakında)
+                Paylaşılabilir görsel indir (PNG)
               </button>
+
             </Row>
           </Card>
 
