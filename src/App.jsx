@@ -20,6 +20,11 @@ function clamp(n, min, max) {
   return Math.max(min, Math.min(max, n));
 }
 
+function formatTL(n) {
+  // 120000 -> 120.000
+  return new Intl.NumberFormat("tr-TR").format(n);
+}
+
 function Card({ children }) {
   return (
     <div
@@ -86,7 +91,68 @@ function Slider({ label, value, onChange }) {
   );
 }
 
+/**
+ * v1 Estimate Model (MVP)
+ * - We approximate "effective tax burden" mainly via indirect taxes.
+ * - Rent is assumed low VAT impact (proxy: 0–2%).
+ * - Food lower VAT impact, transport higher, other medium.
+ * - Add surcharges for car / cigarettes / alcohol.
+ * - Return a range (min/max) + TL range.
+ */
+function computeEstimate({
+  incomeMidMonthly,
+  spend_food,
+  spend_rent,
+  spend_transport,
+  spend_other,
+  has_car,
+  smokes,
+  drinks_alcohol,
+}) {
+  const annualIncome = incomeMidMonthly * 12;
+
+  // Weighted indirect tax proxy rates (not exact VAT/ÖTV, but a plausible proxy)
+  const rateFood = 0.08; // lower
+  const rateRent = 0.02; // near zero-ish proxy
+  const rateTransport = 0.18; // higher
+  const rateOther = 0.12; // medium
+
+  const weightedRate =
+    (spend_food / 100) * rateFood +
+    (spend_rent / 100) * rateRent +
+    (spend_transport / 100) * rateTransport +
+    (spend_other / 100) * rateOther;
+
+  // Surcharges as additional effective burden
+  let surcharge = 0;
+  if (has_car) surcharge += 0.03; // car ownership tends to imply fuel/vehicle taxes
+  if (smokes) surcharge += 0.025; // strong excise proxy
+  if (drinks_alcohol) surcharge += 0.02; // excise proxy
+
+  // Baseline effective tax percent
+  const basePct = weightedRate + surcharge;
+
+  // Add uncertainty band (range)
+  const minPct = clamp(Math.round((basePct - 0.03) * 100), 5, 80);
+  const maxPct = clamp(Math.round((basePct + 0.05) * 100), 5, 80);
+
+  const tlMin = Math.round(annualIncome * (minPct / 100));
+  const tlMax = Math.round(annualIncome * (maxPct / 100));
+
+  return {
+    annualIncome,
+    result_tax_pct_min: minPct,
+    result_tax_pct_max: maxPct,
+    result_tl_min: tlMin,
+    result_tl_max: tlMax,
+  };
+}
+
 export default function App() {
+  const [step, setStep] = useState("form"); // "form" | "result"
+  const [savingState, setSavingState] = useState("idle"); // idle | saving | saved | error
+  const [saveError, setSaveError] = useState("");
+
   const [incomeBand, setIncomeBand] = useState(INCOME_BANDS[2].value);
 
   // Spending splits
@@ -99,22 +165,25 @@ export default function App() {
   const [hasCar, setHasCar] = useState(false);
   const [smokes, setSmokes] = useState(false);
   const [drinksAlcohol, setDrinksAlcohol] = useState(false);
-  const [ownsRealEstate, setOwnsRealEstate] = useState(null); // null means "not answered"
+  const [ownsRealEstate, setOwnsRealEstate] = useState(null); // optional
 
   const [consent, setConsent] = useState(true);
+
+  // Results stored after compute
+  const [result, setResult] = useState(null);
 
   const sum = food + rent + transport + other;
   const sumOk = sum === 100;
 
-  const incomeLabel = useMemo(() => {
-    return INCOME_BANDS.find((b) => b.value === incomeBand)?.label || "";
+  const incomeObj = useMemo(() => {
+    return INCOME_BANDS.find((b) => b.value === incomeBand) || INCOME_BANDS[2];
   }, [incomeBand]);
 
-  // Helpers to keep sliders sane without complicated logic yet
   function nudgeToHundred(changedKey, nextValue) {
-    // Simple approach: set the changed one, then adjust "other" to keep sum 100.
-    // If "other" would go negative, clamp and accept sum mismatch (user can fix).
-    let f = food, r = rent, t = transport, o = other;
+    let f = food,
+      r = rent,
+      t = transport,
+      o = other;
 
     if (changedKey === "food") f = nextValue;
     if (changedKey === "rent") r = nextValue;
@@ -124,7 +193,6 @@ export default function App() {
     const newSum = f + r + t + o;
     const diff = 100 - newSum;
 
-    // If user changed something other than "other", auto-adjust "other"
     if (changedKey !== "other") {
       o = clamp(o + diff, 0, 100);
     }
@@ -135,8 +203,220 @@ export default function App() {
     setOther(o);
   }
 
-  const canContinue = sumOk && consent && incomeBand;
+  const canCalculate = sumOk && consent && incomeBand && savingState !== "saving";
 
+  async function handleCalculate() {
+    if (!canCalculate) return;
+
+    setSavingState("saving");
+    setSaveError("");
+
+    // 1) compute
+    const computed = computeEstimate({
+      incomeMidMonthly: incomeObj.mid,
+      spend_food: food,
+      spend_rent: rent,
+      spend_transport: transport,
+      spend_other: other,
+      has_car: hasCar,
+      smokes,
+      drinks_alcohol: drinksAlcohol,
+    });
+
+    // 2) save to DB via Netlify Function
+    const payload = {
+      dk_hp: "", // honeypot, keep empty
+      sim_version: "v1",
+      net_income_band: incomeObj.value,
+
+      spend_food: food,
+      spend_rent: rent,
+      spend_transport: transport,
+      spend_other: other,
+
+      has_car: hasCar,
+      smokes,
+      drinks_alcohol: drinksAlcohol,
+      owns_real_estate: ownsRealEstate, // can be null
+
+      result_tax_pct_min: computed.result_tax_pct_min,
+      result_tax_pct_max: computed.result_tax_pct_max,
+      result_tl_min: computed.result_tl_min,
+      result_tl_max: computed.result_tl_max,
+
+      consent_analytics: consent,
+      client_fingerprint: null,
+    };
+
+    try {
+      const res = await fetch("/.netlify/functions/submit", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      const json = await res.json();
+
+      if (!json.ok) {
+        setSavingState("error");
+        setSaveError(json.error || "Unknown error");
+        // Still show results (so user doesn’t lose the “aha” moment)
+      } else {
+        setSavingState("saved");
+      }
+    } catch (e) {
+      setSavingState("error");
+      setSaveError("Network error");
+    }
+
+    // 3) show results
+    setResult({
+      ...computed,
+      incomeLabel: incomeObj.label,
+      food,
+      rent,
+      transport,
+      other,
+      hasCar,
+      smokes,
+      drinksAlcohol,
+    });
+    setStep("result");
+  }
+
+  function resetToForm() {
+    setStep("form");
+    setSavingState("idle");
+    setSaveError("");
+  }
+
+  // ---------------- UI RENDER ----------------
+
+  if (step === "result" && result) {
+    const monthsForTaxesMin = Math.round((result.result_tax_pct_min / 100) * 12);
+    const monthsForTaxesMax = Math.round((result.result_tax_pct_max / 100) * 12);
+
+    return (
+      <div
+        style={{
+          minHeight: "100vh",
+          background: BRAND.cream,
+          padding: 18,
+          fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, Arial",
+          color: BRAND.text,
+        }}
+      >
+        <div style={{ maxWidth: 920, margin: "0 auto" }}>
+          <header style={{ marginBottom: 14 }}>
+            <div style={{ fontWeight: 800, color: BRAND.red, letterSpacing: 0.2 }}>Diskursi</div>
+            <h1 style={{ margin: "6px 0 4px", fontSize: 28 }}>Sonuç</h1>
+            <p style={{ margin: 0, color: "#555", lineHeight: 1.5 }}>
+              Bu bir “yaklaşık” tahmindir. Amaç farkındalık yaratmaktır.
+            </p>
+          </header>
+
+          <Card>
+            <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "baseline" }}>
+              <div style={{ flex: "1 1 320px" }}>
+                <div style={{ color: "#666", fontSize: 13 }}>Aylık net gelir aralığın</div>
+                <div style={{ fontWeight: 800, fontSize: 18 }}>{result.incomeLabel}</div>
+              </div>
+              <div style={{ flex: "1 1 320px" }}>
+                <div style={{ color: "#666", fontSize: 13 }}>Yıllık net gelir (yaklaşık)</div>
+                <div style={{ fontWeight: 800, fontSize: 18 }}>
+                  {formatTL(result.annualIncome)} TL
+                </div>
+              </div>
+            </div>
+
+            <div style={{ height: 12 }} />
+
+            <div
+              style={{
+                padding: 14,
+                borderRadius: 14,
+                background: "rgba(185, 28, 28, 0.08)",
+                border: "1px solid rgba(185, 28, 28, 0.18)",
+              }}
+            >
+              <div style={{ color: BRAND.red, fontWeight: 900, fontSize: 14 }}>
+                Tahmini yıllık vergi yükün
+              </div>
+              <div style={{ fontSize: 28, fontWeight: 900, marginTop: 4 }}>
+                %{result.result_tax_pct_min} – %{result.result_tax_pct_max}
+              </div>
+              <div style={{ marginTop: 6, color: "#333", fontSize: 16 }}>
+                {formatTL(result.result_tl_min)} – {formatTL(result.result_tl_max)} TL / yıl
+              </div>
+
+              <div style={{ marginTop: 10, color: "#555" }}>
+                Bu, yılda yaklaşık{" "}
+                <strong>
+                  {monthsForTaxesMin} – {monthsForTaxesMax} ay
+                </strong>{" "}
+                sadece “vergiler için çalışmak” gibi düşünebilirsin.
+              </div>
+            </div>
+
+            <div style={{ height: 12 }} />
+
+            {savingState === "saved" ? (
+              <div style={{ color: "rgba(22,163,74,1)", fontWeight: 700 }}>
+                ✅ Yanıtın kaydedildi (anonim).
+              </div>
+            ) : savingState === "error" ? (
+              <div style={{ color: BRAND.orange, fontWeight: 700 }}>
+                ⚠️ Sonuç gösterildi ama kayıt sırasında hata oldu: {saveError}
+              </div>
+            ) : (
+              <div style={{ color: "#666" }}>…</div>
+            )}
+
+            <div style={{ height: 14 }} />
+
+            <Row>
+              <button
+                onClick={resetToForm}
+                style={{
+                  padding: "12px 14px",
+                  borderRadius: 12,
+                  border: "1px solid rgba(0,0,0,0.12)",
+                  background: "white",
+                  cursor: "pointer",
+                  fontWeight: 800,
+                }}
+              >
+                ← Geri dön
+              </button>
+
+              <button
+                onClick={() => alert("Next step: Share-card generator (Step 14).")}
+                style={{
+                  padding: "12px 14px",
+                  borderRadius: 12,
+                  border: "none",
+                  background: BRAND.red,
+                  color: "white",
+                  cursor: "pointer",
+                  fontWeight: 900,
+                }}
+              >
+                Paylaşılabilir görsel oluştur (yakında)
+              </button>
+            </Row>
+          </Card>
+
+          <div style={{ height: 18 }} />
+
+          <footer style={{ color: "#777", fontSize: 12, textAlign: "center" }}>
+            Diskursi MVP · “Yaklaşık” simülasyon · v1
+          </footer>
+        </div>
+      </div>
+    );
+  }
+
+  // FORM STEP
   return (
     <div
       style={{
@@ -149,12 +429,8 @@ export default function App() {
     >
       <div style={{ maxWidth: 920, margin: "0 auto" }}>
         <header style={{ marginBottom: 14 }}>
-          <div style={{ fontWeight: 800, color: BRAND.red, letterSpacing: 0.2 }}>
-            Diskursi
-          </div>
-          <h1 style={{ margin: "6px 0 4px", fontSize: 28 }}>
-            Vergi Yükü Simülasyonu (MVP)
-          </h1>
+          <div style={{ fontWeight: 800, color: BRAND.red, letterSpacing: 0.2 }}>Diskursi</div>
+          <h1 style={{ margin: "6px 0 4px", fontSize: 28 }}>Vergi Yükü Simülasyonu (MVP)</h1>
           <p style={{ margin: 0, color: "#555", lineHeight: 1.5 }}>
             1 dakikada yaklaşık bir tahmin. Tam rakam değil; “yaklaşık” bir farkındalık aracı.
           </p>
@@ -182,7 +458,7 @@ export default function App() {
           </select>
 
           <div style={{ marginTop: 10, color: "#666", fontSize: 13 }}>
-            Seçili: <strong>{incomeLabel}</strong>
+            Seçili: <strong>{incomeObj.label}</strong>
           </div>
         </Card>
 
@@ -296,25 +572,25 @@ export default function App() {
 
           <div style={{ marginTop: 14 }}>
             <button
-              disabled={!canContinue}
-              onClick={() => alert("Next step: calculation + result screen (we’ll add next).")}
+              disabled={!canCalculate}
+              onClick={handleCalculate}
               style={{
                 width: "100%",
                 padding: "14px 16px",
                 borderRadius: 14,
                 border: "none",
-                background: canContinue ? BRAND.red : "rgba(0,0,0,0.18)",
+                background: canCalculate ? BRAND.red : "rgba(0,0,0,0.18)",
                 color: "white",
                 fontWeight: 800,
-                cursor: canContinue ? "pointer" : "not-allowed",
+                cursor: canCalculate ? "pointer" : "not-allowed",
                 fontSize: 16,
               }}
             >
-              Sonucu Hesapla →
+              {savingState === "saving" ? "Hesaplanıyor..." : "Sonucu Hesapla →"}
             </button>
 
             <div style={{ marginTop: 10, fontSize: 12, color: "#666" }}>
-              (Şimdilik bu buton sadece test amaçlı. Bir sonraki adımda hesaplama + kayıt + sonuç ekranı gelecek.)
+              (Hesaplanınca sonuç ekranına geçeceğiz ve yanıtı anonim şekilde kaydedeceğiz.)
             </div>
           </div>
         </Card>
