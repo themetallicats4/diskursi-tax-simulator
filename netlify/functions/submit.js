@@ -87,25 +87,36 @@ export async function handler(event) {
         console.log("DEBUG fingerprint:", row.client_fingerprint);
 
         // Simple rate limit: 1 submission per 30 seconds per fingerprint
+        // Simple rate limit: 1 submission per 30 seconds per fingerprint (DB-side, reliable)
         if (row.client_fingerprint) {
+            const fp = row.client_fingerprint;
+
+            // Ask Postgres: is there a submission in the last 30 seconds?
+            const sinceIso = new Date(Date.now() - 30 * 1000).toISOString();
+
             const { data: recent, error: recentErr } = await supabase
                 .from("tax_sim_submissions")
-                .select("created_at")
-                .eq("client_fingerprint", row.client_fingerprint)
-                .order("created_at", { ascending: false })
+                .select("id, created_at")
+                .eq("client_fingerprint", fp)
+                .gte("created_at", sinceIso)
                 .limit(1);
 
-            if (!recentErr && recent && recent.length > 0) {
-                const last = new Date(recent[0].created_at).getTime();
-                const now = Date.now();
-                if (now - last < 30 * 1000) {
-                    return {
-                        statusCode: 429,
-                        body: JSON.stringify({ ok: false, error: "Too many submissions. Please wait a bit." }),
-                    };
-                }
+            if (recentErr) {
+                console.log("RATE_LIMIT lookup error:", recentErr.message);
+            } else if (recent && recent.length > 0) {
+                console.log("RATE_LIMIT hit for fp:", fp, "recent created_at:", recent[0].created_at);
+                return {
+                    statusCode: 429,
+                    body: JSON.stringify({
+                        ok: false,
+                        error: "Too many submissions. Please wait ~30 seconds and try again.",
+                    }),
+                };
+            } else {
+                console.log("RATE_LIMIT ok for fp:", fp);
             }
         }
+
 
 
         const { error } = await supabase.from("tax_sim_submissions").insert([row]);
