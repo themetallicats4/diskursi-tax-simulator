@@ -26,7 +26,6 @@ export async function handler(event) {
         // Required fields
         const required = [
             "sim_version",
-            "net_income_band",
             "spend_food",
             "spend_rent",
             "spend_transport",
@@ -39,6 +38,10 @@ export async function handler(event) {
             "result_tl_min",
             "result_tl_max",
             "consent_analytics",
+            "wage_gross_monthly",
+            "other_income_monthly",
+            "annual_gross_total",
+            "direct_tax_total",
         ];
 
         for (const k of required) {
@@ -48,6 +51,16 @@ export async function handler(event) {
                     body: JSON.stringify({ ok: false, error: `Missing: ${k}` }),
                 };
             }
+        }
+
+        const wage = Number(payload.wage_gross_monthly || 0);
+        const otherInc = Number(payload.other_income_monthly || 0);
+
+        if (wage <= 0 && otherInc <= 0) {
+            return {
+                statusCode: 400,
+                body: JSON.stringify({ ok: false, error: "Income cannot be zero for both wage and other." }),
+            };
         }
 
         // Spend split validation
@@ -67,7 +80,7 @@ export async function handler(event) {
         // Build row
         const row = {
             sim_version: payload.sim_version,
-            net_income_band: payload.net_income_band,
+            net_income_band: payload.net_income_band || null,
             spend_food: payload.spend_food,
             spend_rent: payload.spend_rent,
             spend_transport: payload.spend_transport,
@@ -83,6 +96,10 @@ export async function handler(event) {
             result_tl_max: payload.result_tl_max,
             consent_analytics: !!payload.consent_analytics,
             client_fingerprint: payload.client_fingerprint || null,
+            wage_gross_monthly: payload.wage_gross_monthly,
+            other_income_monthly: payload.other_income_monthly,
+            annual_gross_total: payload.annual_gross_total,
+            direct_tax_total: payload.direct_tax_total,
         };
         console.log("DEBUG fingerprint:", row.client_fingerprint);
 

@@ -255,16 +255,41 @@ function Slider({ label, value, onChange }) {
   );
 }
 
-/**
- * v1 Estimate Model (MVP)
- * - We approximate "effective tax burden" mainly via indirect taxes.
- * - Rent is assumed low VAT impact (proxy: 0–2%).
- * - Food lower VAT impact, transport higher, other medium.
- * - Add surcharges for car / cigarettes / alcohol.
- * - Return a range (min/max) + TL range.
- */
-function computeEstimate({
-  incomeMidMonthly,
+function MoneySlider({ label, value, onChange, min, max, step, hint }) {
+  return (
+    <div style={{ marginTop: 10 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
+        <div style={{ fontWeight: 800, color: BRAND.text }}>{label}</div>
+        <div style={{ fontWeight: 900, color: BRAND.text }}>
+          {new Intl.NumberFormat("tr-TR").format(value)} TL
+        </div>
+      </div>
+
+      {hint ? (
+        <div style={{ marginTop: 4, fontSize: 12, color: "#666" }}>{hint}</div>
+      ) : null}
+
+      <input
+        type="range"
+        min={min}
+        max={max}
+        step={step}
+        value={value}
+        onChange={(e) => onChange(Number(e.target.value))}
+        style={{ width: "100%", marginTop: 10 }}
+      />
+
+      <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, color: "#777" }}>
+        <span>{new Intl.NumberFormat("tr-TR").format(min)} TL</span>
+        <span>{new Intl.NumberFormat("tr-TR").format(max)} TL</span>
+      </div>
+    </div>
+  );
+}
+
+function computeEstimateV2({
+  wageGrossMonthly,
+  otherIncomeMonthly,
   spend_food,
   spend_rent,
   spend_transport,
@@ -273,13 +298,38 @@ function computeEstimate({
   smokes,
   drinks_alcohol,
 }) {
-  const annualIncome = incomeMidMonthly * 12;
+  const W = Math.max(0, Number(wageGrossMonthly) || 0) * 12;  // annual wage gross
+  const O = Math.max(0, Number(otherIncomeMonthly) || 0) * 12; // annual other gross
+  const annualGrossTotal = W + O;
 
-  // Weighted indirect tax proxy rates (not exact VAT/ÖTV, but a plausible proxy)
-  const rateFood = 0.08; // lower
-  const rateRent = 0.02; // near zero-ish proxy
-  const rateTransport = 0.18; // higher
-  const rateOther = 0.12; // medium
+  if (annualGrossTotal <= 0) {
+    return null;
+  }
+
+  // Payroll deductions (wage only)
+  const sgk = W * SGK_RATE;
+  const ui = W * UI_RATE;
+  const stamp = W * STAMP_RATE;
+
+  // Wage taxable base (simple v2 assumption)
+  const W_taxable = Math.max(0, W - sgk - ui);
+
+  // Income tax on wage portion using wage brackets
+  const taxWage = calcProgressiveTax(W_taxable, TAX_BRACKETS_WAGE_2026);
+
+  // Other income tax using non-wage brackets, stacked above wage taxable base
+  // (This captures "marginal stacking" effect cleanly.)
+  const taxNonWage_total = calcProgressiveTax(W_taxable + O, TAX_BRACKETS_NONWAGE_2026);
+  const taxNonWage_base = calcProgressiveTax(W_taxable, TAX_BRACKETS_NONWAGE_2026);
+  const taxOther = Math.max(0, taxNonWage_total - taxNonWage_base);
+
+  const directTaxTotal = sgk + ui + stamp + taxWage + taxOther;
+
+  // ---- Indirect estimate (your existing proxy model)
+  const rateFood = 0.08;
+  const rateRent = 0.02;
+  const rateTransport = 0.18;
+  const rateOther = 0.12;
 
   const weightedRate =
     (spend_food / 100) * rateFood +
@@ -287,29 +337,76 @@ function computeEstimate({
     (spend_transport / 100) * rateTransport +
     (spend_other / 100) * rateOther;
 
-  // Surcharges as additional effective burden
   let surcharge = 0;
-  if (has_car) surcharge += 0.03; // car ownership tends to imply fuel/vehicle taxes
-  if (smokes) surcharge += 0.025; // strong excise proxy
-  if (drinks_alcohol) surcharge += 0.02; // excise proxy
+  if (has_car) surcharge += 0.03;
+  if (smokes) surcharge += 0.025;
+  if (drinks_alcohol) surcharge += 0.02;
 
-  // Baseline effective tax percent
-  const basePct = weightedRate + surcharge;
+  const indirectBasePct = weightedRate + surcharge;
 
-  // Add uncertainty band (range)
-  const minPct = clamp(Math.round((basePct - 0.03) * 100), 5, 80);
-  const maxPct = clamp(Math.round((basePct + 0.05) * 100), 5, 80);
+  // uncertainty band for indirect part (same idea as v1)
+  const indirectMinPct = clamp(indirectBasePct - 0.03, 0.00, 0.80);
+  const indirectMaxPct = clamp(indirectBasePct + 0.05, 0.00, 0.80);
 
-  const tlMin = Math.round(annualIncome * (minPct / 100));
-  const tlMax = Math.round(annualIncome * (maxPct / 100));
+  const indirectMinTL = annualGrossTotal * indirectMinPct;
+  const indirectMaxTL = annualGrossTotal * indirectMaxPct;
+
+  // Unified totals
+  const totalMinTL = directTaxTotal + indirectMinTL;
+  const totalMaxTL = directTaxTotal + indirectMaxTL;
+
+  const totalMinPct = clamp((totalMinTL / annualGrossTotal) * 100, 0, 95);
+  const totalMaxPct = clamp((totalMaxTL / annualGrossTotal) * 100, 0, 95);
 
   return {
-    annualIncome,
-    result_tax_pct_min: minPct,
-    result_tax_pct_max: maxPct,
-    result_tl_min: tlMin,
-    result_tl_max: tlMax,
+    annualGrossTotal,
+    directTaxTotal: Math.round(directTaxTotal),
+
+    // unified outputs
+    result_tax_pct_min: Math.round(totalMinPct),
+    result_tax_pct_max: Math.round(totalMaxPct),
+    result_tl_min: Math.round(totalMinTL),
+    result_tl_max: Math.round(totalMaxTL),
   };
+}
+
+const TAX_BRACKETS_WAGE_2026 = [
+  { upTo: 190000, rate: 0.15 },
+  { upTo: 400000, rate: 0.20 },
+  { upTo: 1500000, rate: 0.27 },
+  { upTo: 5300000, rate: 0.35 },
+  { upTo: Infinity, rate: 0.40 },
+];
+
+const TAX_BRACKETS_NONWAGE_2026 = [
+  { upTo: 190000, rate: 0.15 },
+  { upTo: 400000, rate: 0.20 },
+  { upTo: 1000000, rate: 0.27 },
+  { upTo: 5300000, rate: 0.35 },
+  { upTo: Infinity, rate: 0.40 },
+];
+
+const SGK_RATE = 0.14;
+const UI_RATE = 0.01;
+const STAMP_RATE = 0.00759; // validated: 200k -> 1518
+
+function calcProgressiveTax(taxableIncome, brackets) {
+  const income = Math.max(0, Number(taxableIncome) || 0);
+  let remaining = income;
+  let lastLimit = 0;
+  let tax = 0;
+
+  for (const b of brackets) {
+    const limit = b.upTo;
+    const slice = Math.min(remaining, limit - lastLimit);
+    if (slice > 0) {
+      tax += slice * b.rate;
+      remaining -= slice;
+      lastLimit = limit;
+    }
+    if (remaining <= 0) break;
+  }
+  return tax;
 }
 
 export default function App() {
@@ -318,6 +415,10 @@ export default function App() {
   const [saveError, setSaveError] = useState("");
 
   const [incomeBand, setIncomeBand] = useState(INCOME_BANDS[2].value);
+
+  // Income (monthly gross)
+  const [wageGrossMonthly, setWageGrossMonthly] = useState(20000);
+  const [otherIncomeMonthly, setOtherIncomeMonthly] = useState(0);
 
   // Spending splits
   const [food, setFood] = useState(25);
@@ -367,7 +468,8 @@ export default function App() {
     setOther(o);
   }
 
-  const canCalculate = sumOk && consent && incomeBand && savingState !== "saving";
+  const incomeOk = (wageGrossMonthly > 0) || (otherIncomeMonthly > 0);
+  const canCalculate = sumOk && consent && incomeOk && savingState !== "saving";
 
   async function handleCalculate() {
     if (!canCalculate) return;
@@ -376,8 +478,9 @@ export default function App() {
     setSaveError("");
 
     // 1) compute
-    const computed = computeEstimate({
-      incomeMidMonthly: incomeObj.mid,
+    const computed = computeEstimateV2({
+      wageGrossMonthly,
+      otherIncomeMonthly,
       spend_food: food,
       spend_rent: rent,
       spend_transport: transport,
@@ -387,11 +490,21 @@ export default function App() {
       drinks_alcohol: drinksAlcohol,
     });
 
+    if (!computed) {
+      setSavingState("error");
+      setSaveError("Gelir bilgisi geçersiz. (İki gelir de 0 olamaz.)");
+      return;
+    }
+
     // 2) save to DB via Netlify Function
     const payload = {
       dk_hp: "", // honeypot, keep empty
       sim_version: "v1",
-      net_income_band: incomeObj.value,
+
+      wage_gross_monthly: wageGrossMonthly,
+      other_income_monthly: otherIncomeMonthly,
+      annual_gross_total: computed.annualGrossTotal,
+      direct_tax_total: computed.directTaxTotal,
 
       spend_food: food,
       spend_rent: rent,
@@ -483,7 +596,7 @@ export default function App() {
           <Card>
             <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "baseline" }}>
               <div style={{ flex: "1 1 320px" }}>
-                <div style={{ color: "#666", fontSize: 13 }}>Aylık net gelir aralığın</div>
+                <div style={{ color: "#666", fontSize: 13 }}>Aylık brüt gelirin</div>
                 <div style={{ fontWeight: 800, fontSize: 18 }}>{result.incomeLabel}</div>
               </div>
               <div style={{ flex: "1 1 320px" }}>
@@ -606,28 +719,36 @@ export default function App() {
         </header>
 
         <Card>
-          <h2 style={{ marginTop: 0, fontSize: 18 }}>1) Aylık net gelirin hangi aralıkta?</h2>
+          <h2 style={{ marginTop: 0, fontSize: 18 }}>1) Gelir bilgisi (Aylık brüt)</h2>
+          <p style={{ marginTop: 0, color: "#555" }}>
+            Brüt gelir baz alıyoruz. En az bir gelir kalemi 0'dan büyük olmalı.
+          </p>
 
-          <select
-            value={incomeBand}
-            onChange={(e) => setIncomeBand(e.target.value)}
-            style={{
-              width: "100%",
-              padding: 12,
-              borderRadius: 12,
-              border: "1px solid rgba(0,0,0,0.12)",
-              fontSize: 16,
-            }}
-          >
-            {INCOME_BANDS.map((b) => (
-              <option key={b.value} value={b.value}>
-                {b.label}
-              </option>
-            ))}
-          </select>
+          <MoneySlider
+            label="Maaş / Ücret (brüt)"
+            value={wageGrossMonthly}
+            onChange={setWageGrossMonthly}
+            min={0}
+            max={300000}
+            step={500}
+            hint="Örn: bordro brüt maaşın."
+          />
 
-          <div style={{ marginTop: 10, color: "#666", fontSize: 13 }}>
-            Seçili: <strong>{incomeObj.label}</strong>
+          <MoneySlider
+            label="Diğer gelir (kira, freelance, vb.)"
+            value={otherIncomeMonthly}
+            onChange={setOtherIncomeMonthly}
+            min={0}
+            max={200000}
+            step={500}
+            hint="Kira + serbest iş + diğer vergilendirilebilir gelirler (toplam)."
+          />
+
+          <div style={{ marginTop: 12, fontSize: 13, color: "#555" }}>
+            Yıllık brüt toplam:{" "}
+            <strong>
+              {new Intl.NumberFormat("tr-TR").format((wageGrossMonthly + otherIncomeMonthly) * 12)} TL
+            </strong>
           </div>
         </Card>
 
@@ -757,6 +878,12 @@ export default function App() {
             >
               {savingState === "saving" ? "Hesaplanıyor..." : "Sonucu Hesapla →"}
             </button>
+
+            {!incomeOk ? (
+              <div style={{ marginTop: 8, fontSize: 12, color: BRAND.orange, fontWeight: 700 }}>
+                En az bir gelir kalemi 0'dan büyük olmalı.
+              </div>
+            ) : null}
 
             <div style={{ marginTop: 10, fontSize: 12, color: "#666" }}>
               (Hesaplanınca sonuç ekranına geçeceğiz ve yanıtı anonim şekilde kaydedeceğiz.)
