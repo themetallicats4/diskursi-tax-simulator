@@ -281,6 +281,7 @@ function MoneySlider({ label, value, onChange, min, max, step, hint }) {
 function computeEstimateV2({
   wageGrossMonthly,
   otherIncomeMonthly,
+  savingsRate,
   spend_food,
   spend_rent,
   spend_transport,
@@ -316,11 +317,16 @@ function computeEstimateV2({
 
   const directTaxTotal = sgk + ui + stamp + taxWage + taxOther;
 
-  // ---- Indirect estimate (your existing proxy model)
-  const rateFood = 0.08;
-  const rateRent = 0.02;
-  const rateTransport = 0.18;
-  const rateOther = 0.12;
+  const disposable = Math.max(0, annualGrossTotal - directTaxTotal);
+  const s = clamp(Number(savingsRate) || 0, 0, 0.9);
+  const consumptionBase = disposable * (1 - s);
+
+
+  // ---- Indirect estimate (consumption-based)
+  const rateFood = 0.06;      // improved proxy
+  const rateRent = 0.00;      // residential rent: VAT-exempt proxy
+  const rateTransport = has_car ? 0.22 : 0.10; // car users higher fuel/OTV proxy
+  const rateOther = 0.14;
 
   const weightedRate =
     (spend_food / 100) * rateFood +
@@ -328,19 +334,19 @@ function computeEstimateV2({
     (spend_transport / 100) * rateTransport +
     (spend_other / 100) * rateOther;
 
-  let surcharge = 0;
-  if (has_car) surcharge += 0.03;
-  if (smokes) surcharge += 0.025;
-  if (drinks_alcohol) surcharge += 0.02;
+  // Tobacco & alcohol as add-on burden on consumption (still minimal input)
+  let sinSurcharge = 0;
+  if (smokes) sinSurcharge += 0.03;
+  if (drinks_alcohol) sinSurcharge += 0.02;
 
-  const indirectBasePct = weightedRate + surcharge;
+  const indirectEffectiveRate = clamp(weightedRate + sinSurcharge, 0, 0.80);
 
-  // uncertainty band for indirect part (same idea as v1)
-  const indirectMinPct = clamp(indirectBasePct - 0.03, 0.00, 0.80);
-  const indirectMaxPct = clamp(indirectBasePct + 0.05, 0.00, 0.80);
+  // Convert to TL using CONSUMPTION base (not gross)
+  const indirectTL = consumptionBase * indirectEffectiveRate;
 
-  const indirectMinTL = annualGrossTotal * indirectMinPct;
-  const indirectMaxTL = annualGrossTotal * indirectMaxPct;
+  // Uncertainty band (now TL-based, not %-points on gross)
+  const indirectMinTL = indirectTL * 0.90;
+  const indirectMaxTL = indirectTL * 1.15;
 
   // Unified totals
   const totalMinTL = directTaxTotal + indirectMinTL;
@@ -409,6 +415,9 @@ export default function App() {
   const [wageGrossMonthly, setWageGrossMonthly] = useState(20000);
   const [otherIncomeMonthly, setOtherIncomeMonthly] = useState(0);
 
+  // Savings rate (as decimal, e.g., 0.15 = 15%)
+  const [savingsRate, setSavingsRate] = useState(0.15);
+
   // Spending splits
   const [food, setFood] = useState(25);
   const [rent, setRent] = useState(35);
@@ -466,6 +475,7 @@ export default function App() {
     const computed = computeEstimateV2({
       wageGrossMonthly,
       otherIncomeMonthly,
+      savingsRate,
       spend_food: food,
       spend_rent: rent,
       spend_transport: transport,
@@ -490,6 +500,7 @@ export default function App() {
       other_income_monthly: otherIncomeMonthly,
       annual_gross_total: computed.annualGrossTotal,
       direct_tax_total: computed.directTaxTotal,
+      savings_rate: savingsRate,
 
       spend_food: food,
       spend_rent: rent,
@@ -738,6 +749,36 @@ export default function App() {
             <strong>
               {new Intl.NumberFormat("tr-TR").format((wageGrossMonthly + otherIncomeMonthly) * 12)} TL
             </strong>
+          </div>
+
+          <div style={{ marginTop: 14 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
+              <div style={{ fontWeight: 800, color: BRAND.text }}>
+                Birikim oranı (net gelirin)
+              </div>
+              <div style={{ fontWeight: 900, color: BRAND.text }}>
+                %{Math.round(savingsRate * 100)}
+              </div>
+            </div>
+
+            <div style={{ marginTop: 4, fontSize: 12, color: "#666" }}>
+              Net gelir = Brüt gelir − (SGK/işsizlik/damga + gelir vergisi). Bu net gelirin ne kadarını biriktiriyorsun?
+            </div>
+
+            <input
+              type="range"
+              min={0}
+              max={0.6}
+              step={0.01}
+              value={savingsRate}
+              onChange={(e) => setSavingsRate(Number(e.target.value))}
+              style={{ width: "100%", marginTop: 10 }}
+            />
+
+            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, color: "#777" }}>
+              <span>%0</span>
+              <span>%60</span>
+            </div>
           </div>
         </Card>
 

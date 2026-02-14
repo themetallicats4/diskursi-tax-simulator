@@ -30,6 +30,7 @@ export async function handler(event) {
             "spend_rent",
             "spend_transport",
             "spend_other",
+            "savings_rate",
             "has_car",
             "smokes",
             "drinks_alcohol",
@@ -60,6 +61,14 @@ export async function handler(event) {
             return {
                 statusCode: 400,
                 body: JSON.stringify({ ok: false, error: "Income cannot be zero for both wage and other." }),
+            };
+        }
+
+        const s = Number(payload.savings_rate);
+        if (!Number.isFinite(s) || s < 0 || s > 0.9) {
+            return {
+                statusCode: 400,
+                body: JSON.stringify({ ok: false, error: "Invalid savings_rate" }),
             };
         }
 
@@ -98,6 +107,7 @@ export async function handler(event) {
             client_fingerprint: payload.client_fingerprint || null,
             wage_gross_monthly: payload.wage_gross_monthly,
             other_income_monthly: payload.other_income_monthly,
+            savings_rate: payload.savings_rate,
             annual_gross_total: payload.annual_gross_total,
             direct_tax_total: payload.direct_tax_total,
         };
