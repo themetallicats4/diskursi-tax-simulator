@@ -7,15 +7,6 @@ const BRAND = {
   text: "#2E2E2E",
 };
 
-const INCOME_BANDS = [
-  { label: "0–10.000 TL", value: "0-10k", mid: 5000 },
-  { label: "10.001–20.000 TL", value: "10-20k", mid: 15000 },
-  { label: "20.001–30.000 TL", value: "20-30k", mid: 25000 },
-  { label: "30.001–50.000 TL", value: "30-50k", mid: 40000 },
-  { label: "50.001–80.000 TL", value: "50-80k", mid: 65000 },
-  { label: "80.001+ TL", value: "80k+", mid: 95000 },
-];
-
 function clamp(n, min, max) {
   return Math.max(min, Math.min(max, n));
 }
@@ -149,7 +140,7 @@ function generateShareCardDataUrl(result) {
   ctx.font = "600 28px system-ui, -apple-system, Segoe UI, Roboto, Arial";
 
   const lines = [
-    `Net gelir aralığı: ${result.incomeLabel}`,
+    `Aylık brüt maaş: ${formatTL(result.wageGrossMonthly)} TL · Diğer gelir: ${formatTL(result.otherIncomeMonthly)} TL`,
     `Harcama dağılımı: Gıda ${result.food}%, Kira ${result.rent}%, Ulaşım ${result.transport}%, Diğer ${result.other}%`,
     `Araba: ${result.hasCar ? "Var" : "Yok"} · Sigara: ${result.smokes ? "Var" : "Yok"} · Alkol: ${result.drinksAlcohol ? "Var" : "Yok"
     }`,
@@ -164,7 +155,7 @@ function generateShareCardDataUrl(result) {
   // Footer
   ctx.fillStyle = "#666";
   ctx.font = "600 22px system-ui, -apple-system, Segoe UI, Roboto, Arial";
-  ctx.fillText("diskursi · anonim tahmin · v1", cardX + 44, cardY + cardH - 44);
+  ctx.fillText("diskursi · anonim tahmin · v2", cardX + 44, cardY + cardH - 44);
 
   return canvas.toDataURL("image/png");
 }
@@ -414,8 +405,6 @@ export default function App() {
   const [savingState, setSavingState] = useState("idle"); // idle | saving | saved | error
   const [saveError, setSaveError] = useState("");
 
-  const [incomeBand, setIncomeBand] = useState(INCOME_BANDS[2].value);
-
   // Income (monthly gross)
   const [wageGrossMonthly, setWageGrossMonthly] = useState(20000);
   const [otherIncomeMonthly, setOtherIncomeMonthly] = useState(0);
@@ -439,10 +428,6 @@ export default function App() {
 
   const sum = food + rent + transport + other;
   const sumOk = sum === 100;
-
-  const incomeObj = useMemo(() => {
-    return INCOME_BANDS.find((b) => b.value === incomeBand) || INCOME_BANDS[2];
-  }, [incomeBand]);
 
   function nudgeToHundred(changedKey, nextValue) {
     let f = food,
@@ -499,7 +484,7 @@ export default function App() {
     // 2) save to DB via Netlify Function
     const payload = {
       dk_hp: "", // honeypot, keep empty
-      sim_version: "v1",
+      sim_version: "v2",
 
       wage_gross_monthly: wageGrossMonthly,
       other_income_monthly: otherIncomeMonthly,
@@ -550,7 +535,8 @@ export default function App() {
     // 3) show results
     setResult({
       ...computed,
-      incomeLabel: incomeObj.label,
+      wageGrossMonthly,
+      otherIncomeMonthly,
       food,
       rent,
       transport,
@@ -596,13 +582,15 @@ export default function App() {
           <Card>
             <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "baseline" }}>
               <div style={{ flex: "1 1 320px" }}>
-                <div style={{ color: "#666", fontSize: 13 }}>Aylık brüt gelirin</div>
-                <div style={{ fontWeight: 800, fontSize: 18 }}>{result.incomeLabel}</div>
+                <div style={{ color: "#666", fontSize: 13 }}>Aylık brüt gelirlerin</div>
+                <div style={{ fontWeight: 800, fontSize: 18 }}>
+                  Maaş: {formatTL(result.wageGrossMonthly)} TL · Diğer: {formatTL(result.otherIncomeMonthly)} TL
+                </div>
               </div>
               <div style={{ flex: "1 1 320px" }}>
-                <div style={{ color: "#666", fontSize: 13 }}>Yıllık net gelir (yaklaşık)</div>
+                <div style={{ color: "#666", fontSize: 13 }}>Yıllık brüt toplam (yaklaşık)</div>
                 <div style={{ fontWeight: 800, fontSize: 18 }}>
-                  {formatTL(result.annualIncome)} TL
+                  {formatTL(result.annualGrossTotal)} TL
                 </div>
               </div>
             </div>
@@ -652,7 +640,7 @@ export default function App() {
 
             <div style={{ height: 14 }} />
 
-            <Row>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 12 }}>
               <button
                 onClick={resetToForm}
                 style={{
@@ -660,8 +648,9 @@ export default function App() {
                   borderRadius: 12,
                   border: "1px solid rgba(0,0,0,0.12)",
                   background: "white",
+                  color: BRAND.text,
                   cursor: "pointer",
-                  fontWeight: 800,
+                  fontWeight: 900,
                 }}
               >
                 ← Geri dön
@@ -685,13 +674,13 @@ export default function App() {
                 Paylaşılabilir görsel indir (PNG)
               </button>
 
-            </Row>
+            </div>
           </Card>
 
           <div style={{ height: 18 }} />
 
           <footer style={{ color: "#777", fontSize: 12, textAlign: "center" }}>
-            Diskursi MVP · “Yaklaşık” simülasyon · v1
+            Diskursi MVP · “Yaklaşık” simülasyon · v2
           </footer>
         </div>
       </div>
@@ -729,8 +718,8 @@ export default function App() {
             value={wageGrossMonthly}
             onChange={setWageGrossMonthly}
             min={0}
-            max={300000}
-            step={500}
+            max={2000000}
+            step={1000}
             hint="Örn: bordro brüt maaşın."
           />
 
@@ -739,8 +728,8 @@ export default function App() {
             value={otherIncomeMonthly}
             onChange={setOtherIncomeMonthly}
             min={0}
-            max={200000}
-            step={500}
+            max={2000000}
+            step={1000}
             hint="Kira + serbest iş + diğer vergilendirilebilir gelirler (toplam)."
           />
 
@@ -798,7 +787,7 @@ export default function App() {
 
           <div style={{ marginTop: 12 }}>
             <div style={{ fontWeight: 700, marginBottom: 8 }}>Gayrimenkul sahibi misin? (opsiyonel)</div>
-            <Row>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 12 }}>
               <button
                 onClick={() => setOwnsRealEstate(true)}
                 style={{
@@ -840,7 +829,7 @@ export default function App() {
               >
                 Boş bırak
               </button>
-            </Row>
+            </div>
           </div>
         </Card>
 
@@ -894,7 +883,7 @@ export default function App() {
         <div style={{ height: 18 }} />
 
         <footer style={{ color: "#777", fontSize: 12, textAlign: "center" }}>
-          Diskursi MVP · “Yaklaşık” simülasyon · v1
+          Diskursi MVP · “Yaklaşık” simülasyon · v2
         </footer>
       </div>
     </div>

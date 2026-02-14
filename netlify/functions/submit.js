@@ -101,7 +101,6 @@ export async function handler(event) {
             annual_gross_total: payload.annual_gross_total,
             direct_tax_total: payload.direct_tax_total,
         };
-        console.log("DEBUG fingerprint:", row.client_fingerprint);
 
         // Simple rate limit: 1 submission per 30 seconds per fingerprint
         // Simple rate limit: 1 submission per 30 seconds per fingerprint (DB-side, reliable)
@@ -129,8 +128,6 @@ export async function handler(event) {
                         error: "Too many submissions. Please wait ~30 seconds and try again.",
                     }),
                 };
-            } else {
-                console.log("RATE_LIMIT ok for fp:", fp);
             }
         }
 
