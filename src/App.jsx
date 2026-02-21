@@ -1,4 +1,5 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import "./App.css";
 
 const BRAND = {
   red: "#B91C1C",
@@ -120,7 +121,7 @@ function generateShareCardDataUrl(result) {
   // Aha line
   const monthsMin = Math.round((result.result_tax_pct_min / 100) * 12);
   const monthsMax = Math.round((result.result_tax_pct_max / 100) * 12);
-  const aha = `Bu, yılda yaklaşık ${monthsMin}–${monthsMax} ay “vergiler için çalışmak” gibi.`;
+  const aha = `Bu, yılda yaklaşık ${monthsMin}–${monthsMax} ay "vergiler için çalışmak" gibi.`;
 
   ctx.fillStyle = BRAND.orange;
   ctx.font = "800 32px system-ui, -apple-system, Segoe UI, Roboto, Arial";
@@ -406,10 +407,89 @@ function calcProgressiveTax(taxableIncome, brackets) {
   return tax;
 }
 
+function DirectSplitBar({ pct01 }) {
+  const pct = clamp(pct01, 0, 0.95) * 100;
+  return (
+    <div
+      style={{
+        width: "100%",
+        height: 26,
+        borderRadius: 999,
+        background: "#f1f1f1",
+        overflow: "hidden",
+        marginTop: 16,
+        marginBottom: 12,
+      }}
+    >
+      <div
+        style={{
+          height: "100%",
+          width: `${pct}%`,
+          background: "#B91C1C",
+          transition: "width 650ms cubic-bezier(0.2, 0.8, 0.2, 1)",
+        }}
+      />
+    </div>
+  );
+}
+
+function JourneyProgress({ step, isResult }) {
+  const items = isResult
+    ? [
+      { n: 1, label: "Meslek", icon: "👤" },
+      { n: 2, label: "Gelir", icon: "�" },
+      { n: 3, label: "Doğrudan", icon: "🏛" },
+      { n: 4, label: "Yaşam", icon: "💸" },
+      { n: 5, label: "Dolaylı", icon: "🧾" },
+      { n: 6, label: "Toplam", icon: "📊" },
+      { n: 7, label: "Adalet", icon: "⚖️" },
+    ]
+    : [
+      { n: 1, label: "Meslek", icon: "👤" },
+      { n: 2, label: "Gelir", icon: "�" },
+      { n: 3, label: "Doğrudan", icon: "🏛" },
+      { n: 4, label: "Yaşam", icon: "💸" },
+      { n: 5, label: "Dolaylı", icon: "🧾" },
+      { n: 6, label: "Toplam", icon: "�" },
+      { n: 7, label: "Adalet", icon: "⚖️" },
+    ];
+
+  return (
+    <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 14 }}>
+      {items.map((it) => {
+        const active = it.n === step;
+        const done = it.n < step;
+
+        return (
+          <div
+            key={it.n}
+            style={{
+              padding: "8px 10px",
+              borderRadius: 999,
+              border: "1px solid #eee",
+              background: active ? "#fff" : done ? "#fff7ed" : "#fafafa",
+              fontWeight: active ? 900 : 700,
+              color: done ? "#666" : "#222",
+              display: "flex",
+              alignItems: "center",
+              gap: 6,
+            }}
+          >
+            <span>{done ? "✓" : it.icon}</span>
+            <span style={{ fontSize: 13 }}>{it.label}</span>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 export default function App() {
   const [step, setStep] = useState("form"); // "form" | "result"
   const [savingState, setSavingState] = useState("idle"); // idle | saving | saved | error
   const [saveError, setSaveError] = useState("");
+
+  const [journeyStep, setJourneyStep] = useState(1); // 1..6
 
   // Income (monthly gross)
   const [wageGrossMonthly, setWageGrossMonthly] = useState(20000);
@@ -432,8 +512,95 @@ export default function App() {
 
   const [consent, setConsent] = useState(true);
 
+  // Occupation (required, non-empty)
+  const [occupation, setOccupation] = useState("");
+
+  // Fairness perception (Step 7)
+  const [fairnessScore, setFairnessScore] = useState(5);
+  const [fairnessSaved, setFairnessSaved] = useState(false);
+
   // Results stored after compute
   const [result, setResult] = useState(null);
+
+  // Direct tax data for Step 2 animation
+  const [directSnapshot, setDirectSnapshot] = useState(null);
+  const [directBarPct, setDirectBarPct] = useState(0);
+  const [directCountTo, setDirectCountTo] = useState({ gross: 0, direct: 0, left: 0 });
+  const [directCountNow, setDirectCountNow] = useState({ gross: 0, direct: 0, left: 0 });
+
+  useEffect(() => {
+    if (journeyStep !== 3) return;
+
+    const computed = computeEstimateV2({
+      wageGrossMonthly,
+      otherIncomeMonthly,
+      savingsRate,
+      spend_food: food,
+      spend_rent: rent,
+      spend_transport: transport,
+      spend_other: other,
+      has_car: hasCar,
+      smokes,
+      drinks_alcohol: drinksAlcohol,
+    });
+
+    if (!computed) {
+      setJourneyStep(2);
+      return;
+    }
+
+    const gross = computed.annualGrossTotal;
+    const direct = computed.directTaxTotal;
+    const left = Math.max(0, gross - direct);
+
+    setDirectSnapshot({ gross, direct, left });
+
+    // Reset animations
+    setDirectBarPct(0);
+    setDirectCountNow({ gross: 0, direct: 0, left: 0 });
+    setDirectCountTo({ gross, direct, left });
+
+    // Bar animation start (small delay feels nicer)
+    const t1 = setTimeout(() => {
+      setDirectBarPct(gross > 0 ? direct / gross : 0);
+    }, 80);
+
+    // Count-up animation (duration ~650ms)
+    const start = performance.now();
+    const duration = 650;
+
+    let rafId = null;
+    const animate = (now) => {
+      const p = clamp((now - start) / duration, 0, 1);
+      const eased = 1 - Math.pow(1 - p, 3); // easeOutCubic
+
+      setDirectCountNow({
+        gross: Math.round(gross * eased),
+        direct: Math.round(direct * eased),
+        left: Math.round(left * eased),
+      });
+
+      if (p < 1) rafId = requestAnimationFrame(animate);
+    };
+    rafId = requestAnimationFrame(animate);
+
+    return () => {
+      clearTimeout(t1);
+      if (rafId) cancelAnimationFrame(rafId);
+    };
+  }, [
+    journeyStep,
+    wageGrossMonthly,
+    otherIncomeMonthly,
+    savingsRate,
+    food,
+    rent,
+    transport,
+    other,
+    hasCar,
+    smokes,
+    drinksAlcohol,
+  ]);
 
   const sum = food + rent + transport + other;
   const sumOk = sum === 100;
@@ -495,6 +662,7 @@ export default function App() {
     const payload = {
       dk_hp: "", // honeypot, keep empty
       sim_version: "v2",
+      occupation,
 
       wage_gross_monthly: wageGrossMonthly,
       other_income_monthly: otherIncomeMonthly,
@@ -519,7 +687,7 @@ export default function App() {
 
       consent_analytics: consent,
       client_fingerprint: getClientFingerprint(),
-
+      fairness_score: fairnessScore,
     };
 
     try {
@@ -534,7 +702,7 @@ export default function App() {
       if (!json.ok) {
         setSavingState("error");
         setSaveError(json.error || "Unknown error");
-        // Still show results (so user doesn’t lose the “aha” moment)
+        // Still show results (so user doesn't lose the "aha" moment)
       } else {
         setSavingState("saved");
       }
@@ -567,138 +735,9 @@ export default function App() {
 
   // ---------------- UI RENDER ----------------
 
-  if (step === "result" && result) {
-    const monthsForTaxesMin = Math.round((result.result_tax_pct_min / 100) * 12);
-    const monthsForTaxesMax = Math.round((result.result_tax_pct_max / 100) * 12);
+  const monthsForTaxesMin = result ? Math.round((result.result_tax_pct_min / 100) * 12) : 0;
+  const monthsForTaxesMax = result ? Math.round((result.result_tax_pct_max / 100) * 12) : 0;
 
-    return (
-      <div
-        style={{
-          minHeight: "100vh",
-          background: BRAND.cream,
-          padding: 18,
-          fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, Arial",
-          color: BRAND.text,
-        }}
-      >
-        <div style={{ maxWidth: 920, margin: "0 auto" }}>
-          <header style={{ marginBottom: 14 }}>
-            <div style={{ fontWeight: 800, color: BRAND.red, letterSpacing: 0.2 }}>Diskursi</div>
-            <h1 style={{ margin: "6px 0 4px", fontSize: 28 }}>Sonuç</h1>
-            <p style={{ margin: 0, color: "#555", lineHeight: 1.5 }}>
-              Bu bir “yaklaşık” tahmindir. Amaç farkındalık yaratmaktır.
-            </p>
-          </header>
-
-          <Card>
-            <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "baseline" }}>
-              <div style={{ flex: "1 1 320px" }}>
-                <div style={{ color: "#666", fontSize: 13 }}>Aylık brüt gelirlerin</div>
-                <div style={{ fontWeight: 800, fontSize: 18 }}>
-                  Maaş: {formatTL(result.wageGrossMonthly)} TL · Diğer: {formatTL(result.otherIncomeMonthly)} TL
-                </div>
-              </div>
-              <div style={{ flex: "1 1 320px" }}>
-                <div style={{ color: "#666", fontSize: 13 }}>Yıllık brüt toplam (yaklaşık)</div>
-                <div style={{ fontWeight: 800, fontSize: 18 }}>
-                  {formatTL(result.annualGrossTotal)} TL
-                </div>
-              </div>
-            </div>
-
-            <div style={{ height: 12 }} />
-
-            <div
-              style={{
-                padding: 14,
-                borderRadius: 14,
-                background: "rgba(185, 28, 28, 0.08)",
-                border: "1px solid rgba(185, 28, 28, 0.18)",
-              }}
-            >
-              <div style={{ color: BRAND.red, fontWeight: 900, fontSize: 14 }}>
-                Tahmini yıllık vergi yükün
-              </div>
-              <div style={{ fontSize: 28, fontWeight: 900, marginTop: 4 }}>
-                %{result.result_tax_pct_min} – %{result.result_tax_pct_max}
-              </div>
-              <div style={{ marginTop: 6, color: "#333", fontSize: 16 }}>
-                {formatTL(result.result_tl_min)} – {formatTL(result.result_tl_max)} TL / yıl
-              </div>
-
-              <div style={{ marginTop: 10, color: "#555" }}>
-                Bu, yılda yaklaşık{" "}
-                <strong>
-                  {monthsForTaxesMin} – {monthsForTaxesMax} ay
-                </strong>{" "}
-                sadece “vergiler için çalışmak” gibi düşünebilirsin.
-              </div>
-            </div>
-
-            <div style={{ height: 12 }} />
-
-            {savingState === "saved" ? (
-              <div style={{ color: "rgba(22,163,74,1)", fontWeight: 700 }}>
-                ✅ Yanıtın kaydedildi (anonim).
-              </div>
-            ) : savingState === "error" ? (
-              <div style={{ color: BRAND.orange, fontWeight: 700 }}>
-                ⚠️ Sonuç gösterildi ama kayıt sırasında hata oldu: {saveError}
-              </div>
-            ) : (
-              <div style={{ color: "#666" }}>…</div>
-            )}
-
-            <div style={{ height: 14 }} />
-
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 12 }}>
-              <button
-                onClick={resetToForm}
-                style={{
-                  padding: "12px 14px",
-                  borderRadius: 12,
-                  border: "1px solid rgba(0,0,0,0.12)",
-                  background: "white",
-                  color: BRAND.text,
-                  cursor: "pointer",
-                  fontWeight: 900,
-                }}
-              >
-                ← Geri dön
-              </button>
-
-              <button
-                onClick={() => {
-                  const dataUrl = generateShareCardDataUrl(result);
-                  downloadDataUrl(dataUrl, "diskursi-vergi-sonuc.png");
-                }}
-                style={{
-                  padding: "12px 14px",
-                  borderRadius: 12,
-                  border: "none",
-                  background: BRAND.red,
-                  color: "white",
-                  cursor: "pointer",
-                  fontWeight: 900,
-                }}
-              >
-                Paylaşılabilir görsel indir (PNG)
-              </button>
-
-            </div>
-          </Card>
-
-          <div style={{ height: 18 }} />
-
-          <footer style={{ color: "#777", fontSize: 12, textAlign: "center" }}>
-            Diskursi MVP · “Yaklaşık” simülasyon · v2
-          </footer>
-        </div>
-      </div>
-    );
-  }
-
-  // FORM STEP
   return (
     <div
       style={{
@@ -714,217 +753,612 @@ export default function App() {
           <div style={{ fontWeight: 800, color: BRAND.red, letterSpacing: 0.2 }}>Diskursi</div>
           <h1 style={{ margin: "6px 0 4px", fontSize: 28 }}>Vergi Yükü Simülasyonu (MVP)</h1>
           <p style={{ margin: 0, color: "#555", lineHeight: 1.5 }}>
-            1 dakikada yaklaşık bir tahmin. Tam rakam değil; “yaklaşık” bir farkındalık aracı.
+            1 dakikada yaklaşık bir tahmin. Tam rakam değil; "yaklaşık" bir farkındalık aracı.
           </p>
         </header>
 
-        <Card>
-          <h2 style={{ marginTop: 0, fontSize: 18 }}>1) Gelir bilgisi (Aylık brüt)</h2>
-          <p style={{ marginTop: 0, color: "#555" }}>
-            Brüt gelir baz alıyoruz. En az bir gelir kalemi 0'dan büyük olmalı.
-          </p>
+        <JourneyProgress step={step === "result" ? (journeyStep >= 7 ? 7 : 6) : journeyStep} isResult={step === "result"} />
 
-          <MoneySlider
-            label="Maaş / Ücret (brüt)"
-            value={wageGrossMonthly}
-            onChange={setWageGrossMonthly}
-            min={0}
-            max={2000000}
-            step={1000}
-            hint="Örn: bordro brüt maaşın."
-          />
-
-          <MoneySlider
-            label="Diğer gelir (kira, freelance, vb.)"
-            value={otherIncomeMonthly}
-            onChange={setOtherIncomeMonthly}
-            min={0}
-            max={2000000}
-            step={1000}
-            hint="Kira + serbest iş + diğer vergilendirilebilir gelirler (toplam)."
-          />
-
-          <div style={{ marginTop: 12, fontSize: 13, color: "#555" }}>
-            Yıllık brüt toplam:{" "}
-            <strong>
-              {new Intl.NumberFormat("tr-TR").format((wageGrossMonthly + otherIncomeMonthly) * 12)} TL
-            </strong>
-          </div>
-
-          <div style={{ marginTop: 14 }}>
-            <div style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
-              <div style={{ fontWeight: 800, color: BRAND.text }}>
-                Birikim oranı (net gelirin)
+        {step === "result" && result && journeyStep !== 7 && (
+          <div className="stepWrap">
+            <Card>
+              <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "baseline" }}>
+                <div style={{ flex: "1 1 320px" }}>
+                  <div style={{ color: "#666", fontSize: 13 }}>Aylık brüt gelirlerin</div>
+                  <div style={{ fontWeight: 800, fontSize: 18 }}>
+                    Maaş: {formatTL(result.wageGrossMonthly)} TL · Diğer: {formatTL(result.otherIncomeMonthly)} TL
+                  </div>
+                </div>
+                <div style={{ flex: "1 1 320px" }}>
+                  <div style={{ color: "#666", fontSize: 13 }}>Yıllık brüt toplam (yaklaşık)</div>
+                  <div style={{ fontWeight: 800, fontSize: 18 }}>
+                    {formatTL(result.annualGrossTotal)} TL
+                  </div>
+                </div>
               </div>
-              <div style={{ fontWeight: 900, color: BRAND.text }}>
-                %{Math.round(savingsRate * 100)}
-              </div>
-            </div>
 
-            <div style={{ marginTop: 4, fontSize: 12, color: "#666" }}>
-              Net gelir = Brüt gelir − (SGK/işsizlik/damga + gelir vergisi). Bu net gelirin ne kadarını biriktiriyorsun?
-            </div>
+              <div style={{ height: 12 }} />
 
-            <input
-              type="range"
-              min={0}
-              max={0.6}
-              step={0.01}
-              value={savingsRate}
-              onChange={(e) => setSavingsRate(Number(e.target.value))}
-              style={{ width: "100%", marginTop: 10 }}
-            />
-
-            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, color: "#777" }}>
-              <span>%0</span>
-              <span>%60</span>
-            </div>
-          </div>
-        </Card>
-
-        <div style={{ height: 12 }} />
-
-        <Card>
-          <h2 style={{ marginTop: 0, fontSize: 18 }}>2) Harcamaların yaklaşık dağılımı</h2>
-          <p style={{ marginTop: 0, color: "#555" }}>
-            Toplamın <strong>100</strong> olması gerekiyor. Biz “Diğer” kalemini otomatik ayarlamaya çalışıyoruz.
-          </p>
-
-          <Row>
-            <Slider label="Gıda" value={food} onChange={(v) => nudgeToHundred("food", v)} />
-            <Slider label="Kira / Konut" value={rent} onChange={(v) => nudgeToHundred("rent", v)} />
-            <Slider
-              label="Ulaşım"
-              value={transport}
-              onChange={(v) => nudgeToHundred("transport", v)}
-            />
-            <Slider label="Diğer" value={other} onChange={(v) => nudgeToHundred("other", v)} />
-          </Row>
-
-          <div
-            style={{
-              marginTop: 10,
-              padding: 10,
-              borderRadius: 12,
-              background: sumOk ? "rgba(34,197,94,0.12)" : "rgba(249,115,22,0.14)",
-              border: `1px solid ${sumOk ? "rgba(34,197,94,0.25)" : "rgba(249,115,22,0.25)"}`,
-              color: "#333",
-            }}
-          >
-            Toplam: <strong>{sum}%</strong>{" "}
-            {!sumOk ? <span style={{ color: BRAND.orange }}>→ 100 olmalı</span> : "✅"}
-          </div>
-        </Card>
-
-        <div style={{ height: 12 }} />
-
-        <Card>
-          <h2 style={{ marginTop: 0, fontSize: 18 }}>3) Bazı ek bilgiler (isteğe bağlı ama faydalı)</h2>
-          <Row>
-            <Toggle label="Arabam var" checked={hasCar} onChange={setHasCar} />
-            <Toggle label="Sigara kullanıyorum" checked={smokes} onChange={setSmokes} />
-            <Toggle label="Alkol tüketiyorum" checked={drinksAlcohol} onChange={setDrinksAlcohol} />
-          </Row>
-
-          <div style={{ marginTop: 12 }}>
-            <div style={{ fontWeight: 700, marginBottom: 8 }}>Gayrimenkul sahibi misin? (opsiyonel)</div>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 12 }}>
-              <button
-                onClick={() => setOwnsRealEstate(true)}
+              <div
                 style={{
-                  padding: "10px 12px",
-                  borderRadius: 12,
-                  border: "1px solid rgba(0,0,0,0.12)",
-                  background: ownsRealEstate === true ? BRAND.red : "white",
-                  color: ownsRealEstate === true ? "white" : BRAND.text,
-                  cursor: "pointer",
-                  fontWeight: 700,
+                  padding: 14,
+                  borderRadius: 14,
+                  background: "rgba(185, 28, 28, 0.08)",
+                  border: "1px solid rgba(185, 28, 28, 0.18)",
                 }}
               >
-                Evet
-              </button>
-              <button
-                onClick={() => setOwnsRealEstate(false)}
-                style={{
-                  padding: "10px 12px",
-                  borderRadius: 12,
-                  border: "1px solid rgba(0,0,0,0.12)",
-                  background: ownsRealEstate === false ? BRAND.red : "white",
-                  color: ownsRealEstate === false ? "white" : BRAND.text,
-                  cursor: "pointer",
-                  fontWeight: 700,
-                }}
-              >
-                Hayır
-              </button>
-              <button
-                onClick={() => setOwnsRealEstate(null)}
-                style={{
-                  padding: "10px 12px",
-                  borderRadius: 12,
-                  border: "1px solid rgba(0,0,0,0.12)",
-                  background: ownsRealEstate === null ? "rgba(0,0,0,0.04)" : "white",
-                  color: BRAND.text,
-                  cursor: "pointer",
-                }}
-              >
-                Boş bırak
-              </button>
-            </div>
-          </div>
-        </Card>
+                <div style={{ color: BRAND.red, fontWeight: 900, fontSize: 14 }}>
+                  Tahmini yıllık vergi yükün
+                </div>
+                <div style={{ fontSize: 28, fontWeight: 900, marginTop: 4 }}>
+                  %{result.result_tax_pct_min} – %{result.result_tax_pct_max}
+                </div>
+                <div style={{ marginTop: 6, color: "#333", fontSize: 16 }}>
+                  {formatTL(result.result_tl_min)} – {formatTL(result.result_tl_max)} TL / yıl
+                </div>
 
-        <div style={{ height: 12 }} />
-
-        <Card>
-          <h2 style={{ marginTop: 0, fontSize: 18 }}>4) Veri izni</h2>
-          <label style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
-            <input
-              type="checkbox"
-              checked={consent}
-              onChange={(e) => setConsent(e.target.checked)}
-              style={{ width: 18, height: 18, marginTop: 2 }}
-            />
-            <span style={{ color: "#444", lineHeight: 1.4 }}>
-              Sonuçlar anonim şekilde analiz amaçlı kullanılabilir. (İsim/telefon/e-posta toplamıyoruz.)
-            </span>
-          </label>
-
-          <div style={{ marginTop: 14 }}>
-            <button
-              disabled={!canCalculate}
-              onClick={handleCalculate}
-              style={{
-                width: "100%",
-                padding: "14px 16px",
-                borderRadius: 14,
-                border: "none",
-                background: canCalculate ? BRAND.red : "rgba(0,0,0,0.18)",
-                color: "white",
-                fontWeight: 800,
-                cursor: canCalculate ? "pointer" : "not-allowed",
-                fontSize: 16,
-              }}
-            >
-              {savingState === "saving" ? "Hesaplanıyor..." : "Sonucu Hesapla →"}
-            </button>
-
-            {!incomeOk ? (
-              <div style={{ marginTop: 8, fontSize: 12, color: BRAND.orange, fontWeight: 700 }}>
-                En az bir gelir kalemi 0'dan büyük olmalı.
+                <div style={{ marginTop: 10, color: "#555" }}>
+                  Bu, yılda yaklaşık{" "}
+                  <strong>
+                    {monthsForTaxesMin} – {monthsForTaxesMax} ay
+                  </strong>{" "}
+                  sadece "vergiler için çalışmak" gibi düşünebilirsin.
+                </div>
               </div>
-            ) : null}
 
-            <div style={{ marginTop: 10, fontSize: 12, color: "#666" }}>
-              (Hesaplanınca sonuç ekranına geçeceğiz ve yanıtı anonim şekilde kaydedeceğiz.)
-            </div>
+              <div style={{ height: 12 }} />
+
+              {savingState === "saved" ? (
+                <div style={{ color: "rgba(22,163,74,1)", fontWeight: 700 }}>
+                  ✅ Yanıtın kaydedildi (anonim).
+                </div>
+              ) : savingState === "error" ? (
+                <div style={{ color: BRAND.orange, fontWeight: 700 }}>
+                  ⚠️ Sonuç gösterildi ama kayıt sırasında hata oldu: {saveError}
+                </div>
+              ) : (
+                <div style={{ color: "#666" }}>…</div>
+              )}
+
+              <div style={{ height: 14 }} />
+
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 12 }}>
+                <button
+                  onClick={() => {
+                    const dataUrl = generateShareCardDataUrl(result);
+                    downloadDataUrl(dataUrl, "diskursi-vergi-sonuc.png");
+                  }}
+                  style={{
+                    padding: "12px 14px",
+                    borderRadius: 12,
+                    border: "1px solid rgba(0,0,0,0.12)",
+                    background: "white",
+                    color: BRAND.text,
+                    cursor: "pointer",
+                    fontWeight: 900,
+                  }}
+                >
+                  📸 Görseli indir
+                </button>
+
+                <button
+                  onClick={() => setJourneyStep(7)}
+                  style={{
+                    padding: "12px 14px",
+                    borderRadius: 12,
+                    border: "none",
+                    background: BRAND.red,
+                    color: "white",
+                    cursor: "pointer",
+                    fontWeight: 900,
+                  }}
+                >
+                  Devam Et →
+                </button>
+              </div>
+            </Card>
           </div>
-        </Card>
+        )}
+
+        {step === "result" && journeyStep === 7 && (
+          <div className="stepWrap">
+            <Card>
+              <h2 style={{ marginTop: 0, fontSize: 22 }}>⚖️ Adalet algın</h2>
+              <p style={{ marginTop: 6, color: "#555" }}>
+                Bu toplam vergi yükünü ne kadar adil buluyorsun?
+              </p>
+
+              <div style={{ display: "flex", justifyContent: "space-between", fontWeight: 900, marginTop: 10 }}>
+                <span style={{ color: "#777" }}>Hiç adil değil</span>
+                <span style={{ color: "#777" }}>Tamamen adil</span>
+              </div>
+
+              <div style={{ marginTop: 10, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <div style={{ fontSize: 36, fontWeight: 900 }}>{fairnessScore}</div>
+                <div style={{ fontSize: 12, color: "#666" }}>0–10</div>
+              </div>
+
+              <input
+                type="range"
+                min={0}
+                max={10}
+                step={1}
+                value={fairnessScore}
+                onChange={(e) => setFairnessScore(Number(e.target.value))}
+                style={{ width: "100%", marginTop: 12 }}
+              />
+
+              <div style={{ marginTop: 16, display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 12 }}>
+                <button
+                  onClick={() => setJourneyStep(6)}
+                  style={{
+                    padding: "12px 14px",
+                    borderRadius: 12,
+                    border: "1px solid #ddd",
+                    background: "#fff",
+                    color: "#111",
+                    cursor: "pointer",
+                    fontWeight: 900,
+                  }}
+                >
+                  ← Sonuca dön
+                </button>
+
+                <button
+                  onClick={async () => {
+                    setFairnessSaved(true);
+                  }}
+                  style={{
+                    padding: "12px 14px",
+                    borderRadius: 12,
+                    border: "none",
+                    background: "#B91C1C",
+                    color: "#fff",
+                    cursor: "pointer",
+                    fontWeight: 900,
+                  }}
+                >
+                  Kaydet ve Devam Et
+                </button>
+              </div>
+
+              {fairnessSaved && (
+                <div style={{ marginTop: 12, fontWeight: 900, color: "green" }}>
+                  ✅ Yanıtın kaydedilecek (anonim).
+                </div>
+              )}
+
+              <div style={{ marginTop: 10, fontSize: 12, color: "#777" }}>
+                Not: Bu yanıt anonim olarak, yalnızca toplu analiz için kullanılır.
+              </div>
+            </Card>
+          </div>
+        )}
+
+        {journeyStep === 1 && step !== "result" && (
+          <div className="stepWrap">
+            <Card>
+              <h2 style={{ marginTop: 0, fontSize: 22 }}>👤 Meslek grubun</h2>
+              <p style={{ marginTop: 6, color: "#555" }}>
+                Bu simülasyon, farklı meslek gruplarının toplam vergi yükünü karşılaştırabilmek için bu bilgiyi ister.
+              </p>
+
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 12, marginTop: 14 }}>
+                {[
+                  { key: "private", label: "🏢 Özel sektör çalışanı" },
+                  { key: "public", label: "🏛 Kamu çalışanı" },
+                  { key: "self", label: "💼 Serbest çalışan" },
+                  { key: "student", label: "👩🎓 Öğrenci" },
+                  { key: "unemployed", label: "🏠 Çalışmıyor" },
+                  { key: "retired", label: "🧓 Emekli" },
+                ].map((opt) => (
+                  <button
+                    key={opt.key}
+                    onClick={() => {
+                      setOccupation(opt.key);
+                      setJourneyStep(2);
+                    }}
+                    style={{
+                      padding: "14px 14px",
+                      borderRadius: 14,
+                      border: occupation === opt.key ? `2px solid ${BRAND.red}` : "1px solid #eee",
+                      background: occupation === opt.key ? "rgba(185,28,28,0.06)" : "#fff",
+                      cursor: "pointer",
+                      fontWeight: 900,
+                      textAlign: "left",
+                    }}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+
+              <div style={{ marginTop: 14, fontSize: 12, color: "#777" }}>
+                Not: Bu bilgi anonimdir ve yalnızca toplu analiz için kullanılır.
+              </div>
+            </Card>
+          </div>
+        )}
+
+        {journeyStep === 2 && step !== "result" && (
+          <div className="stepWrap">
+            <Card>
+              <h2 style={{ marginTop: 0 }}>💰 Senin Yılın</h2>
+              <p style={{ marginTop: 0, color: "#555" }}>
+                Bu simülasyon, yıl boyunca devlete yaptığın katkıyı görünür kılar.
+              </p>
+
+              <MoneySlider
+                label="Maaş / Ücret (brüt)"
+                value={wageGrossMonthly}
+                onChange={setWageGrossMonthly}
+                min={0}
+                max={2000000}
+                step={1000}
+                hint="Örn: bordro brüt maaşın."
+              />
+
+              <MoneySlider
+                label="Diğer gelir (kira, freelance, vb.)"
+                value={otherIncomeMonthly}
+                onChange={setOtherIncomeMonthly}
+                min={0}
+                max={2000000}
+                step={1000}
+                hint="Kira + serbest iş + diğer vergilendirilebilir gelirler (toplam)."
+              />
+
+              <div style={{ marginTop: 12, fontSize: 13, color: "#555" }}>
+                Yıllık brüt toplam:{" "}
+                <strong>
+                  {formatTL((wageGrossMonthly + otherIncomeMonthly) * 12)} TL
+                </strong>
+              </div>
+
+              {((wageGrossMonthly <= 0) && (otherIncomeMonthly <= 0)) ? (
+                <div style={{ marginTop: 10, fontSize: 12, fontWeight: 800, color: BRAND.orange }}>
+                  En az bir gelir kalemi 0'dan büyük olmalı.
+                </div>
+              ) : null}
+
+              <div style={{ marginTop: 16, display: "flex", justifyContent: "space-between" }}>
+                <button
+                  onClick={() => setJourneyStep(1)}
+                  style={{
+                    padding: "12px 14px",
+                    borderRadius: 12,
+                    border: "1px solid rgba(0,0,0,0.12)",
+                    background: "white",
+                    color: BRAND.text,
+                    fontWeight: 900,
+                    cursor: "pointer",
+                  }}
+                >
+                  ← Geri
+                </button>
+                <button
+                  onClick={() => setJourneyStep(3)}
+                  disabled={(wageGrossMonthly <= 0) && (otherIncomeMonthly <= 0)}
+                  style={{
+                    padding: "12px 14px",
+                    borderRadius: 12,
+                    border: "none",
+                    background: BRAND.red,
+                    color: "#fff",
+                    fontWeight: 900,
+                    cursor: "pointer",
+                    opacity: ((wageGrossMonthly <= 0) && (otherIncomeMonthly <= 0)) ? 0.5 : 1,
+                  }}
+                >
+                  Devam Et →
+                </button>
+              </div>
+            </Card>
+          </div>
+        )}
+
+        {journeyStep === 3 && (
+          <div className="stepWrap">
+            <Card>
+              <h2 style={{ marginTop: 0, fontSize: 22 }}>🏛 Devlet İlk Payını Alıyor</h2>
+
+              <div style={{ fontSize: 14, color: "#555", marginTop: 6 }}>
+                Yıllık brüt gelirin
+              </div>
+
+              <div style={{ fontSize: 28, fontWeight: 900, marginTop: 4 }}>
+                {formatTL(directCountNow.gross)} TL
+              </div>
+
+              <DirectSplitBar pct01={directBarPct} />
+
+              <div
+                style={{
+                  display: "flex",
+                  flexWrap: "wrap",
+                  justifyContent: "space-between",
+                  gap: 10,
+                  fontSize: 14,
+                  fontWeight: 800,
+                  marginBottom: 10,
+                }}
+              >
+                <div style={{ color: "#B91C1C" }}>
+                  Devlete giden (doğrudan): {formatTL(directCountNow.direct)} TL
+                </div>
+                <div>
+                  Sana kalan: {formatTL(directCountNow.left)} TL
+                </div>
+              </div>
+
+              <div style={{ fontSize: 12, color: "#666", marginBottom: 14 }}>
+                Bu ilk kesinti; SGK, işsizlik sigortası, damga vergisi ve gelir vergisini içerir (yaklaşık).
+              </div>
+
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 12 }}>
+                <button
+                  onClick={() => setJourneyStep(2)}
+                  style={{
+                    padding: "12px 14px",
+                    borderRadius: 12,
+                    border: "1px solid #ddd",
+                    background: "#fff",
+                    color: "#111",
+                    cursor: "pointer",
+                    fontWeight: 900,
+                  }}
+                >
+                  ← Geri
+                </button>
+                <button
+                  onClick={() => setJourneyStep(4)}
+                  style={{
+                    padding: "12px 14px",
+                    borderRadius: 12,
+                    border: "none",
+                    background: BRAND.red,
+                    color: "#fff",
+                    cursor: "pointer",
+                    fontWeight: 900,
+                  }}
+                >
+                  Devam Et →
+                </button>
+              </div>
+            </Card>
+          </div>
+        )}
+
+        {journeyStep === 4 && step !== "result" && (
+          <div className="stepWrap">
+            <Card>
+              <h2 style={{ marginTop: 0 }}>💸 Yaşam Tarzın</h2>
+              <p style={{ marginTop: 0, color: "#555" }}>
+                Toplamın <strong>100</strong> olması gerekiyor. Biz "Diğer" kalemini otomatik ayarlamaya çalışıyoruz.
+              </p>
+
+              <Row>
+                <Slider label="Gıda" value={food} onChange={(v) => nudgeToHundred("food", v)} />
+                <Slider label="Kira / Konut" value={rent} onChange={(v) => nudgeToHundred("rent", v)} />
+                <Slider
+                  label="Ulaşım"
+                  value={transport}
+                  onChange={(v) => nudgeToHundred("transport", v)}
+                />
+                <Slider label="Diğer" value={other} onChange={(v) => nudgeToHundred("other", v)} />
+              </Row>
+
+              <div
+                style={{
+                  marginTop: 10,
+                  padding: 10,
+                  borderRadius: 12,
+                  background: sumOk ? "rgba(34,197,94,0.12)" : "rgba(249,115,22,0.14)",
+                  border: `1px solid ${sumOk ? "rgba(34,197,94,0.25)" : "rgba(249,115,22,0.25)"}`,
+                  color: "#333",
+                }}
+              >
+                Toplam: <strong>{sum}%</strong>{" "}
+                {!sumOk ? <span style={{ color: BRAND.orange }}>→ 100 olmalı</span> : "✅"}
+              </div>
+
+              <div style={{ marginTop: 16, display: "flex", justifyContent: "space-between" }}>
+                <button
+                  onClick={() => setJourneyStep(3)}
+                  style={{
+                    padding: "12px 14px",
+                    borderRadius: 12,
+                    border: "1px solid rgba(0,0,0,0.12)",
+                    background: "white",
+                    color: BRAND.text,
+                    fontWeight: 900,
+                    cursor: "pointer",
+                  }}
+                >
+                  ← Geri
+                </button>
+                <button
+                  onClick={() => setJourneyStep(5)}
+                  disabled={!sumOk}
+                  style={{
+                    padding: "12px 14px",
+                    borderRadius: 12,
+                    border: "none",
+                    background: BRAND.red,
+                    color: "#fff",
+                    fontWeight: 900,
+                    cursor: "pointer",
+                    opacity: sumOk ? 1 : 0.5,
+                  }}
+                >
+                  Devam Et →
+                </button>
+              </div>
+            </Card>
+          </div>
+        )}
+
+        {journeyStep === 5 && step !== "result" && (
+          <div className="stepWrap">
+            <Card>
+              <h2 style={{ marginTop: 0, fontSize: 18 }}>📋 Bazı ek bilgiler (isteğe bağlı ama faydalı)</h2>
+              <Row>
+                <Toggle label="Arabam var" checked={hasCar} onChange={setHasCar} />
+                <Toggle label="Sigara kullanıyorum" checked={smokes} onChange={setSmokes} />
+                <Toggle label="Alkol tüketiyorum" checked={drinksAlcohol} onChange={setDrinksAlcohol} />
+              </Row>
+
+              <div style={{ marginTop: 12 }}>
+                <div style={{ fontWeight: 700, marginBottom: 8 }}>Gayrimenkul sahibi misin? (opsiyonel)</div>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 12 }}>
+                  <button
+                    onClick={() => setOwnsRealEstate(true)}
+                    style={{
+                      padding: "10px 12px",
+                      borderRadius: 12,
+                      border: "1px solid rgba(0,0,0,0.12)",
+                      background: ownsRealEstate === true ? BRAND.red : "white",
+                      color: ownsRealEstate === true ? "white" : BRAND.text,
+                      cursor: "pointer",
+                      fontWeight: 700,
+                    }}
+                  >
+                    Evet
+                  </button>
+                  <button
+                    onClick={() => setOwnsRealEstate(false)}
+                    style={{
+                      padding: "10px 12px",
+                      borderRadius: 12,
+                      border: "1px solid rgba(0,0,0,0.12)",
+                      background: ownsRealEstate === false ? BRAND.red : "white",
+                      color: ownsRealEstate === false ? "white" : BRAND.text,
+                      cursor: "pointer",
+                      fontWeight: 700,
+                    }}
+                  >
+                    Hayır
+                  </button>
+                  <button
+                    onClick={() => setOwnsRealEstate(null)}
+                    style={{
+                      padding: "10px 12px",
+                      borderRadius: 12,
+                      border: "1px solid rgba(0,0,0,0.12)",
+                      background: ownsRealEstate === null ? "rgba(0,0,0,0.04)" : "white",
+                      color: BRAND.text,
+                      cursor: "pointer",
+                    }}
+                  >
+                    Boş bırak
+                  </button>
+                </div>
+              </div>
+
+              <div style={{ marginTop: 16, display: "flex", justifyContent: "space-between" }}>
+                <button
+                  onClick={() => setJourneyStep(4)}
+                  style={{
+                    padding: "12px 14px",
+                    borderRadius: 12,
+                    border: "1px solid rgba(0,0,0,0.12)",
+                    background: "white",
+                    color: BRAND.text,
+                    fontWeight: 900,
+                    cursor: "pointer",
+                  }}
+                >
+                  ← Geri
+                </button>
+                <button
+                  onClick={() => setJourneyStep(6)}
+                  style={{
+                    padding: "12px 14px",
+                    borderRadius: 12,
+                    border: "none",
+                    background: BRAND.red,
+                    color: "#fff",
+                    fontWeight: 900,
+                    cursor: "pointer",
+                  }}
+                >
+                  Devam Et →
+                </button>
+              </div>
+            </Card>
+          </div>
+        )}
+
+        {journeyStep === 6 && step !== "result" && (
+          <div className="stepWrap">
+            <Card>
+              <h2 style={{ marginTop: 0, fontSize: 18 }}>🧮 Veri izni ve hesaplama</h2>
+              <label style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
+                <input
+                  type="checkbox"
+                  checked={consent}
+                  onChange={(e) => setConsent(e.target.checked)}
+                  style={{ width: 18, height: 18, marginTop: 2 }}
+                />
+                <span style={{ color: "#444", lineHeight: 1.4 }}>
+                  Sonuçlar anonim şekilde analiz amaçlı kullanılabilir. (İsim/telefon/e-posta toplamıyoruz.)
+                </span>
+              </label>
+
+              <div style={{ marginTop: 14 }}>
+                <button
+                  disabled={!canCalculate}
+                  onClick={handleCalculate}
+                  style={{
+                    width: "100%",
+                    padding: "14px 16px",
+                    borderRadius: 14,
+                    border: "none",
+                    background: canCalculate ? BRAND.red : "rgba(0,0,0,0.18)",
+                    color: "white",
+                    fontWeight: 800,
+                    cursor: canCalculate ? "pointer" : "not-allowed",
+                    fontSize: 16,
+                  }}
+                >
+                  {savingState === "saving" ? "Hesaplanıyor..." : "Sonucu Hesapla →"}
+                </button>
+
+                {!incomeOk ? (
+                  <div style={{ marginTop: 8, fontSize: 12, color: BRAND.orange, fontWeight: 700 }}>
+                    En az bir gelir kalemi 0'dan büyük olmalı.
+                  </div>
+                ) : null}
+
+                <div style={{ marginTop: 10, fontSize: 12, color: "#666" }}>
+                  (Hesaplanınca sonuç ekranına geçeceğiz ve yanıtı anonim şekilde kaydedeceğiz.)
+                </div>
+              </div>
+
+              <div style={{ marginTop: 16 }}>
+                <button
+                  onClick={() => setJourneyStep(5)}
+                  style={{
+                    padding: "12px 14px",
+                    borderRadius: 12,
+                    border: "1px solid rgba(0,0,0,0.12)",
+                    background: "white",
+                    color: BRAND.text,
+                    fontWeight: 900,
+                    cursor: "pointer",
+                  }}
+                >
+                  ← Geri
+                </button>
+              </div>
+            </Card>
+          </div>
+        )}
 
         <div style={{ height: 18 }} />
 
         <footer style={{ color: "#777", fontSize: 12, textAlign: "center" }}>
-          Diskursi MVP · “Yaklaşık” simülasyon · v2
+          Diskursi MVP · "Yaklaşık" simülasyon · v2
         </footer>
       </div>
     </div>

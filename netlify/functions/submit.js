@@ -43,6 +43,8 @@ export async function handler(event) {
             "other_income_monthly",
             "annual_gross_total",
             "direct_tax_total",
+            "occupation",
+            "fairness_score",
         ];
 
         for (const k of required) {
@@ -69,6 +71,23 @@ export async function handler(event) {
             return {
                 statusCode: 400,
                 body: JSON.stringify({ ok: false, error: "Invalid savings_rate" }),
+            };
+        }
+
+        // Occupation validation
+        if (!payload.occupation || String(payload.occupation).trim() === "") {
+            return {
+                statusCode: 400,
+                body: JSON.stringify({ ok: false, error: "Missing occupation" }),
+            };
+        }
+
+        // Fairness score validation
+        const fs = Number(payload.fairness_score);
+        if (!Number.isFinite(fs) || fs < 0 || fs > 10) {
+            return {
+                statusCode: 400,
+                body: JSON.stringify({ ok: false, error: "Invalid fairness_score" }),
             };
         }
 
@@ -110,6 +129,8 @@ export async function handler(event) {
             savings_rate: payload.savings_rate,
             annual_gross_total: payload.annual_gross_total,
             direct_tax_total: payload.direct_tax_total,
+            occupation: String(payload.occupation).trim(),
+            fairness_score: Number(payload.fairness_score),
         };
 
         // Simple rate limit: 1 submission per 30 seconds per fingerprint
