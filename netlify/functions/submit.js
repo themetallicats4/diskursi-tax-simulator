@@ -1,4 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
+import crypto from "crypto";
 
 const supabaseUrl = process.env.SUPABASE_URL;
 const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -177,6 +178,9 @@ export async function handler(event) {
             occupation: String(payload.occupation).trim(),
         };
 
+        const submission_id = crypto.randomUUID();
+        row.submission_id = submission_id;
+
         // Simple rate limit: 1 submission per 30 seconds per fingerprint
         // Simple rate limit: 1 submission per 30 seconds per fingerprint (DB-side, reliable)
         if (row.client_fingerprint) {
@@ -208,7 +212,11 @@ export async function handler(event) {
 
 
 
-        const { error } = await supabase.from("tax_sim_submissions").insert([row]);
+        const { data, error } = await supabase
+            .from("tax_sim_submissions")
+            .insert([row])
+            .select("submission_id")
+            .single();
 
         if (error) {
             return {
@@ -217,7 +225,7 @@ export async function handler(event) {
             };
         }
 
-        return { statusCode: 200, body: JSON.stringify({ ok: true }) };
+        return { statusCode: 200, body: JSON.stringify({ ok: true, submission_id: data.submission_id }) };
     } catch (e) {
         return { statusCode: 500, body: JSON.stringify({ ok: false, error: "Server error" }) };
     }

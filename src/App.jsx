@@ -519,6 +519,20 @@ export default function App() {
   const [fairnessScore, setFairnessScore] = useState(5);
   const [fairnessSaved, setFairnessSaved] = useState(false);
 
+  // Submission ID (returned from server after save)
+  const [submissionId, setSubmissionId] = useState("");
+
+  // Optional survey (Step 8)
+  const [surveyState, setSurveyState] = useState("idle");
+  const [surveyError, setSurveyError] = useState("");
+  const [ageBand, setAgeBand] = useState("");
+  const [gender, setGender] = useState("");
+  const [city, setCity] = useState("");
+  const [tenantStatus, setTenantStatus] = useState("");
+  const [effectivenessScore, setEffectivenessScore] = useState(5);
+  const [trustScore, setTrustScore] = useState(5);
+  const [policyPriority, setPolicyPriority] = useState("");
+
   // Results stored after compute
   const [result, setResult] = useState(null);
 
@@ -704,6 +718,7 @@ export default function App() {
         // Still show results (so user doesn't lose the "aha" moment)
       } else {
         setSavingState("saved");
+        if (json.submission_id) setSubmissionId(json.submission_id);
       }
     } catch (e) {
       setSavingState("error");
@@ -758,7 +773,7 @@ export default function App() {
 
         <JourneyProgress step={step === "result" ? (journeyStep >= 7 ? 7 : 6) : journeyStep} isResult={step === "result"} />
 
-        {step === "result" && result && journeyStep !== 7 && (
+        {step === "result" && result && journeyStep === 6 && (
           <div className="stepWrap">
             <Card>
               <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "baseline" }}>
@@ -938,12 +953,13 @@ export default function App() {
                         setFairnessSaved(true);
                       } else {
                         console.error("Fairness save error:", json.error);
-                        setFairnessSaved(true); // still show success to user
+                        setFairnessSaved(true);
                       }
                     } catch (e) {
                       console.error("Fairness save network error:", e);
-                      setFairnessSaved(true); // best effort
+                      setFairnessSaved(true);
                     }
+                    setJourneyStep(8);
                   }}
                   style={{
                     padding: "12px 14px",
@@ -959,14 +975,336 @@ export default function App() {
                 </button>
               </div>
 
-              {fairnessSaved && (
-                <div style={{ marginTop: 12, fontWeight: 900, color: "green" }}>
-                  ✅ Yanıtın kaydedildi (anonim).
-                </div>
-              )}
-
               <div style={{ marginTop: 10, fontSize: 12, color: "#777" }}>
                 Not: Bu yanıt anonim olarak, yalnızca toplu analiz için kullanılır.
+              </div>
+            </Card>
+          </div>
+        )}
+
+        {step === "result" && journeyStep === 8 && (
+          <div className="stepWrap">
+            <Card>
+              <h2 style={{ marginTop: 0, fontSize: 18 }}>📣 Diskursi’yi destekle</h2>
+              <p style={{ marginTop: 6, color: "#555" }}>
+                Bu mini-simülasyon Diskursi’nin “Civic Intelligence Engine” yaklaşımını geliştirmek için hazırlandı.
+                İstersen aşağıdaki kısa anketi doldurarak anonim şekilde katkı sağlayabilirsin.
+                İsim/e-posta istemiyoruz.
+              </p>
+              <div style={{ marginTop: 10, padding: 12, borderRadius: 12, border: "1px solid #eee", background: "#FFF7ED" }}>
+                <div style={{ fontWeight: 900 }}>📍 İstanbul Anketi</div>
+                <div style={{ marginTop: 6, fontSize: 13, color: "#555" }}>
+                  İstanbul’a özel gündem ve mahalle sorunlarını görmek ister misin?
+                  Diskursi İstanbul anketimizi de inceleyebilirsin.
+                </div>
+                <button
+                  onClick={() => window.open("https://diskursi.com/istanbul", "_blank")}
+                  style={{
+                    marginTop: 10,
+                    padding: "10px 14px",
+                    borderRadius: 10,
+                    border: "none",
+                    background: BRAND.red,
+                    color: "#fff",
+                    fontWeight: 900,
+                    cursor: "pointer",
+                    fontSize: 13,
+                  }}
+                >
+                  İstanbul anketine git →
+                </button>
+              </div>
+            </Card>
+
+            <div style={{ height: 14 }} />
+
+            <Card>
+              <h2 style={{ marginTop: 0, fontSize: 18 }}>📋 Anonim mini anket (isteğe bağlı)</h2>
+              <p style={{ marginTop: 6, color: "#555", fontSize: 13 }}>
+                Bu bilgiler tamamen anonimdir. İsim/e-posta/telefon istemiyoruz.
+                Toplu analiz için kullanılır.
+              </p>
+
+              {/* Age band */}
+              <div style={{ marginTop: 14 }}>
+                <div style={{ fontWeight: 800, fontSize: 13, marginBottom: 6 }}>Yaş aralığın</div>
+                <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                  {["18-24", "25-34", "35-44", "45-54", "55-64", "65+"].map((v) => (
+                    <button
+                      key={v}
+                      onClick={() => setAgeBand(v)}
+                      style={{
+                        padding: "8px 14px",
+                        borderRadius: 10,
+                        border: ageBand === v ? `2px solid ${BRAND.red}` : "1px solid #ddd",
+                        background: ageBand === v ? "rgba(185,28,28,0.08)" : "#fff",
+                        color: ageBand === v ? BRAND.red : "#333",
+                        fontWeight: 800,
+                        cursor: "pointer",
+                        fontSize: 13,
+                      }}
+                    >
+                      {v}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Gender */}
+              <div style={{ marginTop: 14 }}>
+                <div style={{ fontWeight: 800, fontSize: 13, marginBottom: 6 }}>Cinsiyet</div>
+                <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                  {[
+                    { key: "female", label: "Kadın" },
+                    { key: "male", label: "Erkek" },
+                    { key: "other", label: "Diğer" },
+                    { key: "prefer_not", label: "Belirtmek istemiyorum" },
+                  ].map((opt) => (
+                    <button
+                      key={opt.key}
+                      onClick={() => setGender(opt.key)}
+                      style={{
+                        padding: "8px 14px",
+                        borderRadius: 10,
+                        border: gender === opt.key ? `2px solid ${BRAND.red}` : "1px solid #ddd",
+                        background: gender === opt.key ? "rgba(185,28,28,0.08)" : "#fff",
+                        color: gender === opt.key ? BRAND.red : "#333",
+                        fontWeight: 800,
+                        cursor: "pointer",
+                        fontSize: 13,
+                      }}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* City */}
+              <div style={{ marginTop: 14 }}>
+                <div style={{ fontWeight: 800, fontSize: 13, marginBottom: 6 }}>Şehir</div>
+                <input
+                  type="text"
+                  placeholder="Örn: İstanbul"
+                  value={city}
+                  onChange={(e) => setCity(e.target.value)}
+                  style={{
+                    padding: "10px 14px",
+                    borderRadius: 10,
+                    border: "1px solid #ddd",
+                    width: "100%",
+                    boxSizing: "border-box",
+                    fontSize: 14,
+                    fontWeight: 700,
+                  }}
+                />
+              </div>
+
+              {/* Tenant status */}
+              <div style={{ marginTop: 14 }}>
+                <div style={{ fontWeight: 800, fontSize: 13, marginBottom: 6 }}>Konut durumu</div>
+                <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                  {[
+                    { key: "tenant", label: "🏠 Kiracı" },
+                    { key: "owner", label: "🏡 Ev sahibi" },
+                    { key: "family", label: "👨‍👩‍👧 Aileyle" },
+                    { key: "other", label: "Diğer" },
+                  ].map((opt) => (
+                    <button
+                      key={opt.key}
+                      onClick={() => setTenantStatus(opt.key)}
+                      style={{
+                        padding: "8px 14px",
+                        borderRadius: 10,
+                        border: tenantStatus === opt.key ? `2px solid ${BRAND.red}` : "1px solid #ddd",
+                        background: tenantStatus === opt.key ? "rgba(185,28,28,0.08)" : "#fff",
+                        color: tenantStatus === opt.key ? BRAND.red : "#333",
+                        fontWeight: 800,
+                        cursor: "pointer",
+                        fontSize: 13,
+                      }}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Effectiveness score */}
+              <div style={{ marginTop: 14 }}>
+                <div style={{ fontWeight: 800, fontSize: 13, marginBottom: 4 }}>Devlet hizmetlerinin etkinliğini nasıl değerlendirirsin?</div>
+                <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: "#777", marginBottom: 4 }}>
+                  <span>Çok kötü</span>
+                  <span>Çok iyi</span>
+                </div>
+                <div style={{ display: "flex", gap: 4, flexWrap: "wrap", justifyContent: "center" }}>
+                  {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((n) => (
+                    <button
+                      key={n}
+                      onClick={() => setEffectivenessScore(n)}
+                      style={{
+                        width: 40,
+                        height: 40,
+                        borderRadius: 10,
+                        border: effectivenessScore === n ? `2px solid ${BRAND.red}` : "1px solid #ddd",
+                        background: effectivenessScore === n ? "rgba(185,28,28,0.1)" : "#fff",
+                        color: effectivenessScore === n ? BRAND.red : "#333",
+                        fontWeight: 900,
+                        fontSize: 15,
+                        cursor: "pointer",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        padding: 0,
+                      }}
+                    >
+                      {n}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Trust score */}
+              <div style={{ marginTop: 14 }}>
+                <div style={{ fontWeight: 800, fontSize: 13, marginBottom: 4 }}>Merkezi hükümete güvenin</div>
+                <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: "#777", marginBottom: 4 }}>
+                  <span>Hiç güvenmiyorum</span>
+                  <span>Tamamen güveniyorum</span>
+                </div>
+                <div style={{ display: "flex", gap: 4, flexWrap: "wrap", justifyContent: "center" }}>
+                  {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((n) => (
+                    <button
+                      key={n}
+                      onClick={() => setTrustScore(n)}
+                      style={{
+                        width: 40,
+                        height: 40,
+                        borderRadius: 10,
+                        border: trustScore === n ? `2px solid ${BRAND.red}` : "1px solid #ddd",
+                        background: trustScore === n ? "rgba(185,28,28,0.1)" : "#fff",
+                        color: trustScore === n ? BRAND.red : "#333",
+                        fontWeight: 900,
+                        fontSize: 15,
+                        cursor: "pointer",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        padding: 0,
+                      }}
+                    >
+                      {n}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Policy priority (required for survey submit) */}
+              <div style={{ marginTop: 14 }}>
+                <div style={{ fontWeight: 800, fontSize: 13, marginBottom: 6 }}>
+                  Sence vergi gelirlerinin en öncelikli kullanılması gereken alan hangisi?
+                </div>
+                <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                  {[
+                    { key: "education", label: "🏫 Eğitim" },
+                    { key: "health", label: "🏥 Sağlık" },
+                    { key: "infrastructure", label: "🛣 Altyapı" },
+                    { key: "security", label: "🛡 Güvenlik" },
+                    { key: "social", label: "🤝 Sosyal yardım" },
+                    { key: "justice", label: "⚖️ Adalet" },
+                    { key: "environment", label: "🌿 Çevre" },
+                    { key: "economy", label: "💹 Ekonomi" },
+                  ].map((opt) => (
+                    <button
+                      key={opt.key}
+                      onClick={() => setPolicyPriority(opt.key)}
+                      style={{
+                        padding: "8px 14px",
+                        borderRadius: 10,
+                        border: policyPriority === opt.key ? `2px solid ${BRAND.red}` : "1px solid #ddd",
+                        background: policyPriority === opt.key ? "rgba(185,28,28,0.08)" : "#fff",
+                        color: policyPriority === opt.key ? BRAND.red : "#333",
+                        fontWeight: 800,
+                        cursor: "pointer",
+                        fontSize: 13,
+                      }}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Submit survey */}
+              <div style={{ marginTop: 18 }}>
+                <button
+                  disabled={surveyState === "saving" || surveyState === "saved"}
+                  onClick={async () => {
+                    setSurveyState("saving");
+                    setSurveyError("");
+
+                    if (!submissionId) {
+                      setSurveyState("error");
+                      setSurveyError("Simülasyon kaydı bulunamadı. Lütfen sayfayı yenileyip tekrar deneyin.");
+                      return;
+                    }
+
+                    if (!policyPriority) {
+                      setSurveyState("error");
+                      setSurveyError("Lütfen öncelikli alan seç.");
+                      return;
+                    }
+
+                    try {
+                      const res = await fetch("/.netlify/functions/submit_survey", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                          submission_id: submissionId,
+                          age_band: ageBand || null,
+                          gender: gender || null,
+                          city: city || null,
+                          tenant_status: tenantStatus || null,
+                          effectiveness_score: effectivenessScore,
+                          trust_central_gov_score: trustScore,
+                          policy_priority: policyPriority,
+                        }),
+                      });
+                      const json = await res.json().catch(() => null);
+                      if (!res.ok || !json?.ok) {
+                        setSurveyState("error");
+                        setSurveyError(json?.error || "Kaydedilemedi.");
+                        return;
+                      }
+                      setSurveyState("saved");
+                    } catch (e) {
+                      setSurveyState("error");
+                      setSurveyError("Network error");
+                    }
+                  }}
+                  style={{
+                    width: "100%",
+                    padding: "14px 16px",
+                    borderRadius: 14,
+                    border: "none",
+                    background: surveyState === "saved" ? "rgba(22,163,74,1)" : BRAND.red,
+                    color: "#fff",
+                    fontWeight: 900,
+                    cursor: surveyState === "saved" ? "default" : "pointer",
+                    fontSize: 15,
+                  }}
+                >
+                  {surveyState === "saving" ? "Kaydediliyor..." : surveyState === "saved" ? "✅ Anket kaydedildi" : "Anketi gönder"}
+                </button>
+
+                {surveyState === "error" && (
+                  <div style={{ marginTop: 8, fontSize: 12, color: BRAND.orange, fontWeight: 700 }}>
+                    ⚠️ {surveyError}
+                  </div>
+                )}
+              </div>
+
+              <div style={{ marginTop: 10, fontSize: 12, color: "#777" }}>
+                Bu anket tamamen isteğe bağlıdır ve anonim olarak saklanır.
               </div>
             </Card>
           </div>
