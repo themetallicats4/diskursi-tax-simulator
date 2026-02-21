@@ -23,6 +23,60 @@ export async function handler(event) {
             return { statusCode: 200, body: JSON.stringify({ ok: true }) };
         }
 
+        // --- Fairness update mode ---
+        if (payload.action === "update_fairness") {
+            const fp = payload.client_fingerprint;
+            if (!fp || String(fp).trim() === "") {
+                return {
+                    statusCode: 400,
+                    body: JSON.stringify({ ok: false, error: "Missing client_fingerprint" }),
+                };
+            }
+
+            const fs = Number(payload.fairness_score);
+            if (!Number.isFinite(fs) || fs < 0 || fs > 10) {
+                return {
+                    statusCode: 400,
+                    body: JSON.stringify({ ok: false, error: "Invalid fairness_score (must be 0-10)" }),
+                };
+            }
+
+            const { data: rows, error: findErr } = await supabase
+                .from("tax_sim_submissions")
+                .select("id")
+                .eq("client_fingerprint", fp)
+                .order("created_at", { ascending: false })
+                .limit(1);
+
+            if (findErr) {
+                return {
+                    statusCode: 500,
+                    body: JSON.stringify({ ok: false, error: findErr.message }),
+                };
+            }
+
+            if (!rows || rows.length === 0) {
+                return {
+                    statusCode: 404,
+                    body: JSON.stringify({ ok: false, error: "No submission found" }),
+                };
+            }
+
+            const { error: updateErr } = await supabase
+                .from("tax_sim_submissions")
+                .update({ fairness_score: fs })
+                .eq("id", rows[0].id);
+
+            if (updateErr) {
+                return {
+                    statusCode: 500,
+                    body: JSON.stringify({ ok: false, error: updateErr.message }),
+                };
+            }
+
+            return { statusCode: 200, body: JSON.stringify({ ok: true }) };
+        }
+
         // Required fields
         const required = [
             "sim_version",

@@ -924,18 +924,26 @@ export default function App() {
                 <button
                   onClick={async () => {
                     try {
-                      await fetch("/.netlify/functions/update-fairness", {
+                      const res = await fetch("/.netlify/functions/submit", {
                         method: "POST",
                         headers: { "Content-Type": "application/json" },
                         body: JSON.stringify({
+                          action: "update_fairness",
                           client_fingerprint: getClientFingerprint(),
                           fairness_score: fairnessScore,
                         }),
                       });
+                      const json = await res.json();
+                      if (json.ok) {
+                        setFairnessSaved(true);
+                      } else {
+                        console.error("Fairness save error:", json.error);
+                        setFairnessSaved(true); // still show success to user
+                      }
                     } catch (e) {
-                      // silently ignore — best effort
+                      console.error("Fairness save network error:", e);
+                      setFairnessSaved(true); // best effort
                     }
-                    setFairnessSaved(true);
                   }}
                   style={{
                     padding: "12px 14px",
