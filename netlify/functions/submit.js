@@ -44,7 +44,6 @@ export async function handler(event) {
             "annual_gross_total",
             "direct_tax_total",
             "occupation",
-            "fairness_score",
         ];
 
         for (const k of required) {
@@ -82,14 +81,6 @@ export async function handler(event) {
             };
         }
 
-        // Fairness score validation
-        const fs = Number(payload.fairness_score);
-        if (!Number.isFinite(fs) || fs < 0 || fs > 10) {
-            return {
-                statusCode: 400,
-                body: JSON.stringify({ ok: false, error: "Invalid fairness_score" }),
-            };
-        }
 
         // Spend split validation
         const sum =
@@ -130,7 +121,6 @@ export async function handler(event) {
             annual_gross_total: payload.annual_gross_total,
             direct_tax_total: payload.direct_tax_total,
             occupation: String(payload.occupation).trim(),
-            fairness_score: Number(payload.fairness_score),
         };
 
         // Simple rate limit: 1 submission per 30 seconds per fingerprint

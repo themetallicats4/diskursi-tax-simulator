@@ -687,7 +687,6 @@ export default function App() {
 
       consent_analytics: consent,
       client_fingerprint: getClientFingerprint(),
-      fairness_score: fairnessScore,
     };
 
     try {
@@ -873,20 +872,38 @@ export default function App() {
                 <span style={{ color: "#777" }}>Tamamen adil</span>
               </div>
 
-              <div style={{ marginTop: 10, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <div style={{ fontSize: 36, fontWeight: 900 }}>{fairnessScore}</div>
-                <div style={{ fontSize: 12, color: "#666" }}>0–10</div>
+              <div style={{
+                display: "flex",
+                gap: 6,
+                marginTop: 12,
+                flexWrap: "wrap",
+                justifyContent: "center",
+              }}>
+                {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((n) => (
+                  <button
+                    key={n}
+                    onClick={() => setFairnessScore(n)}
+                    style={{
+                      width: 48,
+                      height: 48,
+                      borderRadius: 12,
+                      border: fairnessScore === n ? `2px solid ${BRAND.red}` : "1px solid #ddd",
+                      background: fairnessScore === n ? "rgba(185,28,28,0.1)" : "#fff",
+                      color: fairnessScore === n ? BRAND.red : "#333",
+                      fontWeight: 900,
+                      fontSize: 18,
+                      cursor: "pointer",
+                      transition: "all 150ms ease",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      padding: 0,
+                    }}
+                  >
+                    {n}
+                  </button>
+                ))}
               </div>
-
-              <input
-                type="range"
-                min={0}
-                max={10}
-                step={1}
-                value={fairnessScore}
-                onChange={(e) => setFairnessScore(Number(e.target.value))}
-                style={{ width: "100%", marginTop: 12 }}
-              />
 
               <div style={{ marginTop: 16, display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 12 }}>
                 <button
@@ -906,6 +923,18 @@ export default function App() {
 
                 <button
                   onClick={async () => {
+                    try {
+                      await fetch("/.netlify/functions/update-fairness", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                          client_fingerprint: getClientFingerprint(),
+                          fairness_score: fairnessScore,
+                        }),
+                      });
+                    } catch (e) {
+                      // silently ignore — best effort
+                    }
                     setFairnessSaved(true);
                   }}
                   style={{
@@ -924,7 +953,7 @@ export default function App() {
 
               {fairnessSaved && (
                 <div style={{ marginTop: 12, fontWeight: 900, color: "green" }}>
-                  ✅ Yanıtın kaydedilecek (anonim).
+                  ✅ Yanıtın kaydedildi (anonim).
                 </div>
               )}
 
