@@ -1186,12 +1186,12 @@ export default function App() {
       style={{
         minHeight: "100vh",
         background: BRAND.cream,
-        padding: 18,
+        padding: "18px 12px",
         fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, Arial",
         color: BRAND.text,
       }}
     >
-      <div style={{ maxWidth: 920, margin: "0 auto", padding: "0 16px" }}>
+      <div style={{ maxWidth: 680, margin: "0 auto", padding: "0 8px" }}>
         <header style={{ marginBottom: 32, textAlign: "center" }}>
           <h1 style={{ 
             margin: "0 0 8px 0", 
