@@ -2244,7 +2244,7 @@ export default function App() {
                       key={opt.key}
                       onClick={() => setPolicyPriority(opt.key)}
                       style={{
-                        padding: "16px 20px",
+                        padding: 16,
                         borderRadius: 12,
                         border: policyPriority === opt.key ? `2px solid ${BRAND.redDark}` : "1px solid #E5E7EB",
                         background: policyPriority === opt.key ? BRAND.stepperBg : "#F9FAFB",
@@ -2255,11 +2255,14 @@ export default function App() {
                         transition: "all 150ms ease",
                         display: "flex",
                         alignItems: "center",
+                        justifyContent: "center",
                         gap: 10,
+                        minHeight: 56,
+                        textAlign: "center",
                       }}
                     >
-                      <opt.icon size={18} style={{ strokeWidth: 2 }} />
-                      {opt.label}
+                      <opt.icon size={18} style={{ strokeWidth: 2, flexShrink: 0 }} />
+                      <span style={{ flex: 1 }}>{opt.label}</span>
                     </button>
                   ))}
                 </div>
@@ -2789,7 +2792,7 @@ export default function App() {
                   textAlign: "left",
                   display: "flex",
                   alignItems: "center",
-                  gap: 12,
+                  gap: 10,
                 }}
               >
                 <div style={{
@@ -2805,17 +2808,25 @@ export default function App() {
                 }}>
                   <Car size={22} style={{ color: hasCar ? BRAND.white : BRAND.textMuted, strokeWidth: 2 }} />
                 </div>
-                <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ flex: 1, minWidth: 0, marginRight: 8 }}>
                   <p style={{
                     color: hasCar ? BRAND.redDark : BRAND.text,
                     fontWeight: 600,
                     margin: 0,
                     marginBottom: 4,
                     fontSize: 15,
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
                   }}>
                     Arabam var
                   </p>
-                  <p style={{ color: BRAND.textLight, fontSize: 12, margin: 0 }}>
+                  <p style={{ 
+                    color: BRAND.textLight, 
+                    fontSize: 12, 
+                    margin: 0,
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                  }}>
                     ÖTV, MTV, akaryakıt vergileri
                   </p>
                 </div>
@@ -2829,6 +2840,7 @@ export default function App() {
                   alignItems: "center",
                   justifyContent: "center",
                   flexShrink: 0,
+                  marginLeft: 4,
                 }}>
                   {hasCar && (
                     <div style={{
@@ -2856,7 +2868,7 @@ export default function App() {
                   textAlign: "left",
                   display: "flex",
                   alignItems: "center",
-                  gap: 12,
+                  gap: 10,
                 }}
               >
                 <div style={{
@@ -2872,17 +2884,25 @@ export default function App() {
                 }}>
                   <Cigarette size={22} style={{ color: smokes ? BRAND.white : BRAND.textMuted, strokeWidth: 2 }} />
                 </div>
-                <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ flex: 1, minWidth: 0, marginRight: 8 }}>
                   <p style={{
                     color: smokes ? BRAND.redDark : BRAND.text,
                     fontWeight: 600,
                     margin: 0,
                     marginBottom: 4,
                     fontSize: 15,
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
                   }}>
                     Sigara kullanıyorum
                   </p>
-                  <p style={{ color: BRAND.textLight, fontSize: 12, margin: 0 }}>
+                  <p style={{ 
+                    color: BRAND.textLight, 
+                    fontSize: 12, 
+                    margin: 0,
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                  }}>
                     Yüksek ÖTV oranı
                   </p>
                 </div>
@@ -2896,6 +2916,7 @@ export default function App() {
                   alignItems: "center",
                   justifyContent: "center",
                   flexShrink: 0,
+                  marginLeft: 4,
                 }}>
                   {smokes && (
                     <div style={{
@@ -2923,7 +2944,7 @@ export default function App() {
                   textAlign: "left",
                   display: "flex",
                   alignItems: "center",
-                  gap: 12,
+                  gap: 10,
                 }}
               >
                 <div style={{
@@ -2939,17 +2960,25 @@ export default function App() {
                 }}>
                   <Wine size={22} style={{ color: drinksAlcohol ? BRAND.white : BRAND.textMuted, strokeWidth: 2 }} />
                 </div>
-                <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ flex: 1, minWidth: 0, marginRight: 8 }}>
                   <p style={{
                     color: drinksAlcohol ? BRAND.redDark : BRAND.text,
                     fontWeight: 600,
                     margin: 0,
                     marginBottom: 4,
                     fontSize: 15,
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
                   }}>
                     Alkol tüketiyorum
                   </p>
-                  <p style={{ color: BRAND.textLight, fontSize: 12, margin: 0 }}>
+                  <p style={{ 
+                    color: BRAND.textLight, 
+                    fontSize: 12, 
+                    margin: 0,
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                  }}>
                     Yüksek ÖTV oranı
                   </p>
                 </div>
@@ -2963,6 +2992,7 @@ export default function App() {
                   alignItems: "center",
                   justifyContent: "center",
                   flexShrink: 0,
+                  marginLeft: 4,
                 }}>
                   {drinksAlcohol && (
                     <div style={{
