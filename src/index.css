@@ -1,68 +1,105 @@
 :root {
-  font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
+  font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
   line-height: 1.5;
   font-weight: 400;
-
-  color-scheme: light dark;
-  color: rgba(255, 255, 255, 0.87);
-  background-color: #242424;
-
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
-a {
-  font-weight: 500;
-  color: #646cff;
-  text-decoration: inherit;
-}
-a:hover {
-  color: #535bf2;
-}
-
 body {
   margin: 0;
-  display: flex;
-  place-items: center;
   min-width: 320px;
   min-height: 100vh;
 }
 
-h1 {
-  font-size: 3.2em;
-  line-height: 1.1;
-}
-
-button {
-  border-radius: 8px;
-  border: 1px solid transparent;
-  padding: 0.6em 1.2em;
-  font-size: 1em;
-  font-weight: 500;
-  font-family: inherit;
-  background-color: #1a1a1a;
+/* Custom range input styling for Diskursi */
+input[type='range'] {
+  -webkit-appearance: none;
+  appearance: none;
+  background: transparent;
   cursor: pointer;
-  transition: border-color 0.25s;
-}
-button:hover {
-  border-color: #646cff;
-}
-button:focus,
-button:focus-visible {
-  outline: 4px auto -webkit-focus-ring-color;
+  width: 100%;
 }
 
-@media (prefers-color-scheme: light) {
-  :root {
-    color: #213547;
-    background-color: #ffffff;
-  }
-  a:hover {
-    color: #747bff;
-  }
-  button {
-    background-color: #f9f9f9;
-  }
+/* Webkit (Chrome, Safari, Edge) */
+input[type='range']::-webkit-slider-track {
+  height: 6px;
+  border-radius: 3px;
+  background: transparent;
+}
+
+input[type='range']::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #B91C1C;
+  cursor: pointer;
+  border: 3px solid #FFFFFF;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  margin-top: -7px; /* Centers thumb on track */
+}
+
+/* Firefox */
+input[type='range']::-moz-range-track {
+  height: 6px;
+  border-radius: 3px;
+  background: transparent;
+}
+
+input[type='range']::-moz-range-thumb {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #B91C1C;
+  cursor: pointer;
+  border: 3px solid #FFFFFF;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+/* Gradient slider for survey (red to orange to green) */
+input[type='range'].gradient-slider {
+  height: 8px;
+  background: transparent;
+}
+
+input[type='range'].gradient-slider::-webkit-slider-track {
+  background: linear-gradient(to right, #DC2626 0%, #F97316 50%, #10B981 100%);
+  height: 8px;
+  border-radius: 4px;
+}
+
+input[type='range'].gradient-slider::-moz-range-track {
+  background: linear-gradient(to right, #DC2626 0%, #F97316 50%, #10B981 100%);
+  height: 8px;
+  border-radius: 4px;
+}
+
+input[type='range'].gradient-slider::-webkit-slider-thumb {
+  margin-top: -6px;
+  background: #FFFFFF;
+  border: 3px solid #2E2E2E;
+  width: 20px;
+  height: 20px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+}
+
+input[type='range'].gradient-slider::-moz-range-thumb {
+  background: #FFFFFF;
+  border: 3px solid #2E2E2E;
+  width: 20px;
+  height: 20px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+}
+
+/* Remove default number input spinners */
+input[type='number']::-webkit-inner-spin-button,
+input[type='number']::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+input[type='number'] {
+  -moz-appearance: textfield;
 }

@@ -1954,11 +1954,10 @@ export default function App() {
         {step === "result" && journeyStep === 7 && (
           <div className="stepWrap">
             <Card>
-              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}><Megaphone size={20} style={{ color: BRAND.redDark, strokeWidth: 2 }} /><h2 style={{ margin: 0, fontSize: 18, fontWeight: 600, color: BRAND.text }}>Diskursi'yi destekle</h2></div>
+              <h2 style={{ marginTop: 0, fontSize: 18 }}>📣 Diskursi’yi destekle</h2>
               <p style={{ marginTop: 6, color: "#555" }}>
-                Bu küçük simülasyon Diskursi tarafından Türkiye Cumhuriyeti vatandaşları için geliştirildi. <br />
+                Bu mini-simülasyon Diskursi’nin “Civic Intelligence Engine” yaklaşımını geliştirmek için hazırlandı.
                 İstersen aşağıdaki kısa anketi doldurarak anonim şekilde katkı sağlayabilirsin.
-                Ayrıca İstanbul'da yaşıyorsan aşağıdaki butondan İstanbul anketimize katılıp desteğini artırabilirsin. <br />
                 İsim/e-posta istemiyoruz.
               </p>
               <div style={{ marginTop: 10, padding: 12, borderRadius: 12, border: "1px solid #eee", background: "#FFF7ED" }}>
@@ -1966,20 +1965,17 @@ export default function App() {
                   fontWeight: 900,
                   display: "flex",
                   alignItems: "center",
-                  justifyContent: "center",
                   gap: 6
                 }}>
-                  <MapPin size={30} style={{ color: BRAND.orange, strokeWidth: 2 }} />
-                  <span style={{ fontSize: 20, fontWeight: 700 }}>
-                    İstanbul Anketi
-                  </span>
+                  <MapPin size={16} style={{ color: BRAND.orange, strokeWidth: 2 }} />
+                  İstanbul Anketi
                 </div>
-                <div style={{ marginTop: 6, fontSize: 15, color: "#555" }}>
+                <div style={{ marginTop: 6, fontSize: 13, color: "#555" }}>
                   İstanbul’a özel gündem ve mahalle sorunlarını görmek ister misin?
                   Diskursi İstanbul anketimizi de inceleyebilirsin.
                 </div>
                 <button
-                  onClick={() => window.open("https://diskursi.com.tr", "_blank")}
+                  onClick={() => window.open("https://diskursi.com/istanbul", "_blank")}
                   style={{
                     marginTop: 10,
                     padding: "10px 14px",
@@ -2000,32 +1996,29 @@ export default function App() {
             <div style={{ height: 14 }} />
 
             <Card>
-              <h2 style={{ marginTop: 0, marginBottom: 8, fontSize: 24, fontWeight: 600, color: BRAND.text }}>
-                Sence vergiler nasıl değerlendiriliyor?
-              </h2>
-              <p style={{ marginTop: 0, marginBottom: 32, color: BRAND.textMuted, fontSize: 15, lineHeight: 1.6 }}>
+              <h2 style={{ marginTop: 0, fontSize: 18 }}>Sence vergiler nasıl değerlendiriliyor?</h2>
+              <p style={{ marginTop: 6, color: "#555", fontSize: 13 }}>
                 Sana birkaç sorumuz var. Bu bilgiler tamamen anonimdir. İsim/e-posta/telefon istemiyoruz.
                 Toplu analiz için kullanılır.
               </p>
 
               {/* Age band */}
-              <div style={{ marginBottom: 24 }}>
-                <div style={{ fontWeight: 600, fontSize: 16, marginBottom: 12, color: BRAND.text }}>Yaş aralığın</div>
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12 }}>
+              <div style={{ marginTop: 14 }}>
+                <div style={{ fontWeight: 800, fontSize: 13, marginBottom: 6 }}>Yaş aralığın</div>
+                <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
                   {["18-24", "25-34", "35-44", "45-54", "55-64", "65+"].map((v) => (
                     <button
                       key={v}
                       onClick={() => setAgeBand(v)}
                       style={{
-                        padding: "16px 20px",
-                        borderRadius: 12,
-                        border: ageBand === v ? `2px solid ${BRAND.redDark}` : "1px solid #E5E7EB",
-                        background: ageBand === v ? BRAND.stepperBg : "#F9FAFB",
-                        color: ageBand === v ? BRAND.redDark : BRAND.text,
-                        fontWeight: ageBand === v ? 600 : 400,
+                        padding: "8px 14px",
+                        borderRadius: 10,
+                        border: ageBand === v ? `2px solid ${BRAND.red}` : "1px solid #ddd",
+                        background: ageBand === v ? "rgba(185,28,28,0.08)" : "#fff",
+                        color: ageBand === v ? BRAND.red : "#333",
+                        fontWeight: 800,
                         cursor: "pointer",
-                        fontSize: 16,
-                        transition: "all 150ms ease",
+                        fontSize: 13,
                       }}
                     >
                       {v}
@@ -2035,9 +2028,9 @@ export default function App() {
               </div>
 
               {/* Gender */}
-              <div style={{ marginBottom: 24 }}>
-                <div style={{ fontWeight: 600, fontSize: 16, marginBottom: 12, color: BRAND.text }}>Cinsiyet</div>
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 12 }}>
+              <div style={{ marginTop: 14 }}>
+                <div style={{ fontWeight: 800, fontSize: 13, marginBottom: 6 }}>Cinsiyet</div>
+                <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
                   {[
                     { key: "female", label: "Kadın" },
                     { key: "male", label: "Erkek" },
@@ -2048,15 +2041,14 @@ export default function App() {
                       key={opt.key}
                       onClick={() => setGender(opt.key)}
                       style={{
-                        padding: "16px 20px",
-                        borderRadius: 12,
-                        border: gender === opt.key ? `2px solid ${BRAND.redDark}` : "1px solid #E5E7EB",
-                        background: gender === opt.key ? BRAND.stepperBg : "#F9FAFB",
-                        color: gender === opt.key ? BRAND.redDark : BRAND.text,
-                        fontWeight: gender === opt.key ? 600 : 400,
+                        padding: "8px 14px",
+                        borderRadius: 10,
+                        border: gender === opt.key ? `2px solid ${BRAND.red}` : "1px solid #ddd",
+                        background: gender === opt.key ? "rgba(185,28,28,0.08)" : "#fff",
+                        color: gender === opt.key ? BRAND.red : "#333",
+                        fontWeight: 800,
                         cursor: "pointer",
-                        fontSize: 16,
-                        transition: "all 150ms ease",
+                        fontSize: 13,
                       }}
                     >
                       {opt.label}
@@ -2066,53 +2058,53 @@ export default function App() {
               </div>
 
               {/* City */}
-              <div style={{ marginBottom: 24 }}>
-                <div style={{ fontWeight: 600, fontSize: 16, marginBottom: 12, color: BRAND.text }}>Şehir</div>
+              <div style={{ marginTop: 14 }}>
+                <div style={{ fontWeight: 800, fontSize: 13, marginBottom: 6 }}>Şehir</div>
                 <input
                   type="text"
                   placeholder="Örn: İstanbul"
                   value={city}
                   onChange={(e) => setCity(e.target.value)}
                   style={{
-                    padding: "16px 20px",
-                    borderRadius: 12,
-                    border: "1px solid #E5E7EB",
-                    background: "#F9FAFB",
+                    padding: "10px 14px",
+                    borderRadius: 10,
+                    border: "1px solid #ddd",
                     width: "100%",
                     boxSizing: "border-box",
-                    fontSize: 16,
-                    fontWeight: 400,
-                    color: BRAND.text,
-                    outline: "none",
+                    fontSize: 14,
+                    fontWeight: 700,
                   }}
                 />
               </div>
 
               {/* Tenant status */}
-              <div style={{ marginBottom: 24 }}>
-                <div style={{ fontWeight: 600, fontSize: 16, marginBottom: 12, color: BRAND.text }}>Konut durumu</div>
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 12 }}>
+              <div style={{ marginTop: 14 }}>
+                <div style={{ fontWeight: 800, fontSize: 13, marginBottom: 6 }}>Konut durumu</div>
+                <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
                   {[
-                    { key: "tenant", label: "Kiracı" },
-                    { key: "owner", label: "Ev sahibi" },
-                    { key: "family", label: "Aileyle" },
-                    { key: "other", label: "Diğer" },
+                    { key: "tenant", label: "Kiracı", icon: Home },
+                    { key: "owner", label: "Ev sahibi", icon: Building },
+                    { key: "family", label: "Aileyle", icon: Users },
+                    { key: "other", label: "Diğer", icon: null },
                   ].map((opt) => (
                     <button
                       key={opt.key}
                       onClick={() => setTenantStatus(opt.key)}
                       style={{
-                        padding: "16px 20px",
-                        borderRadius: 12,
-                        border: tenantStatus === opt.key ? `2px solid ${BRAND.redDark}` : "1px solid #E5E7EB",
-                        background: tenantStatus === opt.key ? BRAND.stepperBg : "#F9FAFB",
-                        color: tenantStatus === opt.key ? BRAND.redDark : BRAND.text,
-                        fontWeight: tenantStatus === opt.key ? 600 : 400,
+                        padding: "8px 14px",
+                        borderRadius: 10,
+                        border: tenantStatus === opt.key ? `2px solid ${BRAND.red}` : "1px solid #ddd",
+                        background: tenantStatus === opt.key ? "rgba(185,28,28,0.08)" : "#fff",
+                        color: tenantStatus === opt.key ? BRAND.red : "#333",
+                        fontWeight: 800,
                         cursor: "pointer",
-                        fontSize: 16,
-                        transition: "all 150ms ease",
+                        fontSize: 13,
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 6,
                       }}
                     >
+                      {opt.icon && <opt.icon size={14} style={{ strokeWidth: 2 }} />}
                       {opt.label}
                     </button>
                   ))}
@@ -2120,13 +2112,11 @@ export default function App() {
               </div>
 
               {/* Effectiveness score */}
-              <div style={{ marginBottom: 24 }}>
-                <div style={{ fontWeight: 600, fontSize: 16, marginBottom: 4, color: BRAND.text }}>
-                  Devlet hizmetlerinin etkinliğini nasıl değerlendirirsin?
-                </div>
-                <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, color: BRAND.textMuted, marginBottom: 12 }}>
+              <div style={{ marginTop: 14 }}>
+                <div style={{ fontWeight: 800, fontSize: 13, marginBottom: 4 }}>Devlet hizmetlerinin etkinliğini nasıl değerlendirirsin?</div>
+                <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: "#777", marginBottom: 8 }}>
                   <span>Çok kötü</span>
-                  <span style={{ fontWeight: 700, fontSize: 16, color: BRAND.text }}>{effectivenessScore}</span>
+                  <span style={{ fontWeight: 700, fontSize: 14, color: "#333" }}>{effectivenessScore}</span>
                   <span>Çok iyi</span>
                 </div>
                 <div style={{ position: "relative", width: "100%", height: 20 }}>
@@ -2162,13 +2152,11 @@ export default function App() {
               </div>
 
               {/* Trust score */}
-              <div style={{ marginBottom: 24 }}>
-                <div style={{ fontWeight: 600, fontSize: 16, marginBottom: 4, color: BRAND.text }}>
-                  Merkezi hükümete güvenin
-                </div>
-                <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, color: BRAND.textMuted, marginBottom: 12 }}>
+              <div style={{ marginTop: 14 }}>
+                <div style={{ fontWeight: 800, fontSize: 13, marginBottom: 4 }}>Merkezi hükümete güvenin</div>
+                <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: "#777", marginBottom: 8 }}>
                   <span>Hiç güvenmiyorum</span>
-                  <span style={{ fontWeight: 700, fontSize: 16, color: BRAND.text }}>{trustScore}</span>
+                  <span style={{ fontWeight: 700, fontSize: 14, color: "#333" }}>{trustScore}</span>
                   <span>Tamamen güveniyorum</span>
                 </div>
                 <div style={{ position: "relative", width: "100%", height: 20 }}>
@@ -2203,12 +2191,12 @@ export default function App() {
                 </div>
               </div>
 
-              {/* Policy priority */}
-              <div style={{ marginBottom: 24 }}>
-                <div style={{ fontWeight: 600, fontSize: 16, marginBottom: 12, color: BRAND.text }}>
+              {/* Policy priority (required for survey submit) */}
+              <div style={{ marginTop: 14 }}>
+                <div style={{ fontWeight: 800, fontSize: 13, marginBottom: 6 }}>
                   Sence vergi gelirlerinin en öncelikli kullanılması gereken alan hangisi?
                 </div>
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 12 }}>
+                <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
                   {[
                     { key: "education", label: "Eğitim", icon: School },
                     { key: "health", label: "Sağlık", icon: Hospital },
@@ -2223,21 +2211,20 @@ export default function App() {
                       key={opt.key}
                       onClick={() => setPolicyPriority(opt.key)}
                       style={{
-                        padding: "16px 20px",
-                        borderRadius: 12,
-                        border: policyPriority === opt.key ? `2px solid ${BRAND.redDark}` : "1px solid #E5E7EB",
-                        background: policyPriority === opt.key ? BRAND.stepperBg : "#F9FAFB",
-                        color: policyPriority === opt.key ? BRAND.redDark : BRAND.text,
-                        fontWeight: policyPriority === opt.key ? 600 : 400,
+                        padding: "8px 14px",
+                        borderRadius: 10,
+                        border: policyPriority === opt.key ? `2px solid ${BRAND.red}` : "1px solid #ddd",
+                        background: policyPriority === opt.key ? "rgba(185,28,28,0.08)" : "#fff",
+                        color: policyPriority === opt.key ? BRAND.red : "#333",
+                        fontWeight: 800,
                         cursor: "pointer",
-                        fontSize: 16,
-                        transition: "all 150ms ease",
+                        fontSize: 13,
                         display: "flex",
                         alignItems: "center",
-                        gap: 10,
+                        gap: 6,
                       }}
                     >
-                      <opt.icon size={18} style={{ strokeWidth: 2 }} />
+                      <opt.icon size={14} style={{ strokeWidth: 2 }} />
                       {opt.label}
                     </button>
                   ))}
