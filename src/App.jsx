@@ -67,9 +67,9 @@ function NumericStepper({ label, value, onChange, min, max, step, hint, unit = "
 
   return (
     <div style={{ marginTop: 16 }}>
-      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8, flexWrap: "wrap", gap: 4 }}>
         <label style={{ fontWeight: 600, color: BRAND.text, fontSize: 15 }}>{label}</label>
-        <span style={{ fontWeight: 700, color: BRAND.text, fontSize: 15 }}>
+        <span style={{ fontWeight: 700, color: BRAND.text, fontSize: 15, whiteSpace: "nowrap" }}>
           {new Intl.NumberFormat("tr-TR").format(value)} {unit}
         </span>
       </div>
@@ -78,7 +78,7 @@ function NumericStepper({ label, value, onChange, min, max, step, hint, unit = "
         <div style={{ marginBottom: 8, fontSize: 12, color: BRAND.textLight }}>{hint}</div>
       )}
 
-      <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
         <button
           onClick={handleDecrement}
           style={{
@@ -91,6 +91,9 @@ function NumericStepper({ label, value, onChange, min, max, step, hint, unit = "
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
+            flexShrink: 0,
+            minWidth: 44,
+            minHeight: 44,
           }}
           onMouseEnter={(e) => {
             e.currentTarget.style.backgroundColor = BRAND.stepperHover;
@@ -108,13 +111,14 @@ function NumericStepper({ label, value, onChange, min, max, step, hint, unit = "
           onChange={handleInputChange}
           style={{
             flex: 1,
+            minWidth: 0,
             textAlign: "center",
-            padding: "14px 16px",
+            padding: "14px 8px",
             borderRadius: 12,
             backgroundColor: BRAND.inputBg,
             border: `1px solid ${BRAND.border}`,
             color: BRAND.text,
-            fontSize: 20,
+            fontSize: 18,
             fontWeight: 600,
             outline: "none",
           }}
@@ -132,6 +136,9 @@ function NumericStepper({ label, value, onChange, min, max, step, hint, unit = "
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
+            flexShrink: 0,
+            minWidth: 44,
+            minHeight: 44,
           }}
           onMouseEnter={(e) => {
             e.currentTarget.style.backgroundColor = BRAND.stepperHover;
@@ -1370,14 +1377,13 @@ export default function App() {
                     borderRadius: 16,
                     background: BRAND.stepperBg,
                     border: `2px solid ${BRAND.redDark}`,
+                    textAlign: "center",
                   }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                      <span style={{ color: BRAND.redDark, fontSize: 16, fontWeight: 700 }}>
-                        TOPLAM VERGİ
-                      </span>
-                      <span style={{ color: BRAND.redDark, fontSize: 20, fontWeight: 700 }}>
-                        {formatTL(result.result_tl_min)} – {formatTL(result.result_tl_max)} TL
-                      </span>
+                    <div style={{ color: BRAND.redDark, fontSize: 14, fontWeight: 700, marginBottom: 8 }}>
+                      TOPLAM VERGİ
+                    </div>
+                    <div style={{ color: BRAND.redDark, fontSize: 24, fontWeight: 700, lineHeight: 1.2 }}>
+                      {formatTL(result.result_tl_min)} – {formatTL(result.result_tl_max)} TL
                     </div>
                   </div>
                 </Card>
@@ -2017,7 +2023,7 @@ export default function App() {
                       key={v}
                       onClick={() => setAgeBand(v)}
                       style={{
-                        padding: "16px 20px",
+                        padding: 16,
                         borderRadius: 12,
                         border: ageBand === v ? `2px solid ${BRAND.redDark}` : "1px solid #E5E7EB",
                         background: ageBand === v ? BRAND.stepperBg : "#F9FAFB",
@@ -2026,6 +2032,11 @@ export default function App() {
                         cursor: "pointer",
                         fontSize: 16,
                         transition: "all 150ms ease",
+                        textAlign: "center",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        minHeight: 56,
                       }}
                     >
                       {v}
@@ -2048,7 +2059,7 @@ export default function App() {
                       key={opt.key}
                       onClick={() => setGender(opt.key)}
                       style={{
-                        padding: "16px 20px",
+                        padding: 16,
                         borderRadius: 12,
                         border: gender === opt.key ? `2px solid ${BRAND.redDark}` : "1px solid #E5E7EB",
                         background: gender === opt.key ? BRAND.stepperBg : "#F9FAFB",
@@ -2057,6 +2068,11 @@ export default function App() {
                         cursor: "pointer",
                         fontSize: 16,
                         transition: "all 150ms ease",
+                        textAlign: "center",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        minHeight: 56,
                       }}
                     >
                       {opt.label}
@@ -2102,7 +2118,7 @@ export default function App() {
                       key={opt.key}
                       onClick={() => setTenantStatus(opt.key)}
                       style={{
-                        padding: "16px 20px",
+                        padding: 16,
                         borderRadius: 12,
                         border: tenantStatus === opt.key ? `2px solid ${BRAND.redDark}` : "1px solid #E5E7EB",
                         background: tenantStatus === opt.key ? BRAND.stepperBg : "#F9FAFB",
@@ -2111,6 +2127,11 @@ export default function App() {
                         cursor: "pointer",
                         fontSize: 16,
                         transition: "all 150ms ease",
+                        textAlign: "center",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        minHeight: 56,
                       }}
                     >
                       {opt.label}
@@ -2477,13 +2498,23 @@ export default function App() {
                 backgroundColor: BRAND.highlightBg,
                 border: `1px solid ${BRAND.highlightBorder}`
               }}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <span style={{ color: BRAND.highlightText, fontWeight: 500 }}>
+                <div style={{ 
+                  display: "flex", 
+                  flexDirection: "column",
+                  gap: 8,
+                  alignItems: "center",
+                  textAlign: "center"
+                }}>
+                  <span style={{ 
+                    color: BRAND.highlightText, 
+                    fontWeight: 600,
+                    fontSize: 14
+                  }}>
                     Yıllık brüt toplam:
                   </span>
                   <span style={{
                     color: BRAND.highlightText,
-                    fontSize: 20,
+                    fontSize: 24,
                     fontWeight: 700,
                   }}>
                     {formatTL((wageGrossMonthly + otherIncomeMonthly) * 12)} TL
@@ -2748,7 +2779,7 @@ export default function App() {
                 onClick={() => setHasCar(!hasCar)}
                 style={{
                   width: "100%",
-                  padding: 24,
+                  padding: "16px 12px",
                   borderRadius: 16,
                   marginBottom: 16,
                   border: hasCar ? `2px solid ${BRAND.redDark}` : `1px solid ${BRAND.border}`,
@@ -2758,22 +2789,29 @@ export default function App() {
                   textAlign: "left",
                   display: "flex",
                   alignItems: "center",
-                  gap: 16,
+                  gap: 12,
                 }}
               >
                 <div style={{
-                  padding: 12,
+                  padding: 10,
                   borderRadius: 12,
                   backgroundColor: hasCar ? BRAND.redDark : BRAND.border,
+                  flexShrink: 0,
+                  width: 44,
+                  height: 44,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
                 }}>
-                  <Car size={24} style={{ color: hasCar ? BRAND.white : BRAND.textMuted, strokeWidth: 2 }} />
+                  <Car size={22} style={{ color: hasCar ? BRAND.white : BRAND.textMuted, strokeWidth: 2 }} />
                 </div>
-                <div style={{ flex: 1 }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
                   <p style={{
                     color: hasCar ? BRAND.redDark : BRAND.text,
                     fontWeight: 600,
                     margin: 0,
                     marginBottom: 4,
+                    fontSize: 15,
                   }}>
                     Arabam var
                   </p>
@@ -2782,19 +2820,20 @@ export default function App() {
                   </p>
                 </div>
                 <div style={{
-                  width: 24,
-                  height: 24,
+                  width: 28,
+                  height: 28,
                   borderRadius: "50%",
                   border: `2px solid ${hasCar ? BRAND.redDark : "#D1D5DB"}`,
                   backgroundColor: hasCar ? BRAND.redDark : "transparent",
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
+                  flexShrink: 0,
                 }}>
                   {hasCar && (
                     <div style={{
-                      width: 12,
-                      height: 12,
+                      width: 14,
+                      height: 14,
                       borderRadius: "50%",
                       backgroundColor: BRAND.white,
                     }} />
@@ -2807,7 +2846,7 @@ export default function App() {
                 onClick={() => setSmokes(!smokes)}
                 style={{
                   width: "100%",
-                  padding: 24,
+                  padding: "16px 12px",
                   borderRadius: 16,
                   marginBottom: 16,
                   border: smokes ? `2px solid ${BRAND.redDark}` : `1px solid ${BRAND.border}`,
@@ -2817,22 +2856,29 @@ export default function App() {
                   textAlign: "left",
                   display: "flex",
                   alignItems: "center",
-                  gap: 16,
+                  gap: 12,
                 }}
               >
                 <div style={{
-                  padding: 12,
+                  padding: 10,
                   borderRadius: 12,
                   backgroundColor: smokes ? BRAND.redDark : BRAND.border,
+                  flexShrink: 0,
+                  width: 44,
+                  height: 44,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
                 }}>
-                  <Cigarette size={24} style={{ color: smokes ? BRAND.white : BRAND.textMuted, strokeWidth: 2 }} />
+                  <Cigarette size={22} style={{ color: smokes ? BRAND.white : BRAND.textMuted, strokeWidth: 2 }} />
                 </div>
-                <div style={{ flex: 1 }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
                   <p style={{
                     color: smokes ? BRAND.redDark : BRAND.text,
                     fontWeight: 600,
                     margin: 0,
                     marginBottom: 4,
+                    fontSize: 15,
                   }}>
                     Sigara kullanıyorum
                   </p>
@@ -2841,19 +2887,20 @@ export default function App() {
                   </p>
                 </div>
                 <div style={{
-                  width: 24,
-                  height: 24,
+                  width: 28,
+                  height: 28,
                   borderRadius: "50%",
                   border: `2px solid ${smokes ? BRAND.redDark : "#D1D5DB"}`,
                   backgroundColor: smokes ? BRAND.redDark : "transparent",
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
+                  flexShrink: 0,
                 }}>
                   {smokes && (
                     <div style={{
-                      width: 12,
-                      height: 12,
+                      width: 14,
+                      height: 14,
                       borderRadius: "50%",
                       backgroundColor: BRAND.white,
                     }} />
@@ -2866,7 +2913,7 @@ export default function App() {
                 onClick={() => setDrinksAlcohol(!drinksAlcohol)}
                 style={{
                   width: "100%",
-                  padding: 24,
+                  padding: "16px 12px",
                   borderRadius: 16,
                   marginBottom: 24,
                   border: drinksAlcohol ? `2px solid ${BRAND.redDark}` : `1px solid ${BRAND.border}`,
@@ -2876,22 +2923,29 @@ export default function App() {
                   textAlign: "left",
                   display: "flex",
                   alignItems: "center",
-                  gap: 16,
+                  gap: 12,
                 }}
               >
                 <div style={{
-                  padding: 12,
+                  padding: 10,
                   borderRadius: 12,
                   backgroundColor: drinksAlcohol ? BRAND.redDark : BRAND.border,
+                  flexShrink: 0,
+                  width: 44,
+                  height: 44,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
                 }}>
-                  <Wine size={24} style={{ color: drinksAlcohol ? BRAND.white : BRAND.textMuted, strokeWidth: 2 }} />
+                  <Wine size={22} style={{ color: drinksAlcohol ? BRAND.white : BRAND.textMuted, strokeWidth: 2 }} />
                 </div>
-                <div style={{ flex: 1 }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
                   <p style={{
                     color: drinksAlcohol ? BRAND.redDark : BRAND.text,
                     fontWeight: 600,
                     margin: 0,
                     marginBottom: 4,
+                    fontSize: 15,
                   }}>
                     Alkol tüketiyorum
                   </p>
@@ -2900,19 +2954,20 @@ export default function App() {
                   </p>
                 </div>
                 <div style={{
-                  width: 24,
-                  height: 24,
+                  width: 28,
+                  height: 28,
                   borderRadius: "50%",
                   border: `2px solid ${drinksAlcohol ? BRAND.redDark : "#D1D5DB"}`,
                   backgroundColor: drinksAlcohol ? BRAND.redDark : "transparent",
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
+                  flexShrink: 0,
                 }}>
                   {drinksAlcohol && (
                     <div style={{
-                      width: 12,
-                      height: 12,
+                      width: 14,
+                      height: 14,
                       borderRadius: "50%",
                       backgroundColor: BRAND.white,
                     }} />
