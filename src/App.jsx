@@ -49,7 +49,7 @@ const BRAND = {
 
 function NumericStepper({ label, value, onChange, min, max, step, hint, unit = "TL" }) {
   const handleIncrement = () => {
-    const newValue = Math.min(max, value + step);
+    const newValue = max ? Math.min(max, value + step) : value + step;
     onChange(newValue);
   };
 
@@ -61,7 +61,8 @@ function NumericStepper({ label, value, onChange, min, max, step, hint, unit = "
   const handleInputChange = (e) => {
     const newValue = Number(e.target.value);
     if (!isNaN(newValue)) {
-      onChange(Math.max(min, Math.min(max, newValue)));
+      const clamped = max ? Math.max(min, Math.min(max, newValue)) : Math.max(min, newValue);
+      onChange(clamped);
     }
   };
 
@@ -151,10 +152,13 @@ function NumericStepper({ label, value, onChange, min, max, step, hint, unit = "
         </button>
       </div>
 
-      <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: BRAND.textLight, marginTop: 6 }}>
-        <span>{new Intl.NumberFormat("tr-TR").format(min)} {unit}</span>
-        <span>{new Intl.NumberFormat("tr-TR").format(max)} {unit}</span>
-      </div>
+      {(min >= 12000 || max) && (
+        <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: BRAND.textLight, marginTop: 6 }}>
+          {min >= 12000 && <span>{new Intl.NumberFormat("tr-TR").format(min)} {unit}</span>}
+          {!min || min < 12000 ? <span></span> : null}
+          {max && <span>{new Intl.NumberFormat("tr-TR").format(max)} {unit}</span>}
+        </div>
+      )}
     </div>
   );
 }
@@ -2479,8 +2483,8 @@ export default function App() {
                 value={wageGrossMonthly}
                 onChange={setWageGrossMonthly}
                 min={0}
-                max={200000}
-                step={100}
+                max={null}
+                step={1000}
                 hint="Örn: bordro brüt maaşın"
               />
 
@@ -2489,8 +2493,8 @@ export default function App() {
                 value={otherIncomeMonthly}
                 onChange={setOtherIncomeMonthly}
                 min={0}
-                max={200000}
-                step={100}
+                max={null}
+                step={1000}
                 hint="Kira + serbest iş + diğer vergilendirilebilir gelirler"
               />
 
