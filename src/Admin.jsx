@@ -18,7 +18,9 @@ const CONFIG_KEYS = [
 ];
 
 export default function Admin() {
-  const [authenticated, setAuthenticated] = useState(false);
+  const [adminToken, setAdminToken] = useState(sessionStorage.getItem("adminToken") || "");
+  const [passwordInput, setPasswordInput] = useState("");
+  const [authError, setAuthError] = useState("");
   const [form, setForm] = useState({
     teacher_monthly_salary: "",
     scholarship_monthly: "",
@@ -32,17 +34,34 @@ export default function Admin() {
   const [saveState, setSaveState] = useState("idle"); // idle | saving | saved | error
   const [saveError, setSaveError] = useState("");
 
-  // Simple password protection
-  useEffect(() => {
-    const password = prompt("Admin şifresi girin:");
-    if (password === "diskursi123") {
-      setAuthenticated(true);
+  async function handleLogin() {
+    setAuthError("");
+    try {
+      const res = await fetch("/.netlify/functions/admin-login", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ password: passwordInput }),
+      });
+      const json = await res.json();
+      if (!res.ok || !json.ok) {
+        setAuthError(json.error || "Login failed");
+        return;
+      }
+      sessionStorage.setItem("adminToken", json.token);
+      setAdminToken(json.token);
+    } catch (e) {
+      setAuthError("Network error");
     }
-  }, []);
+  }
 
   // Fetch current values on mount
   useEffect(() => {
-    if (!authenticated) return;
+    if (!adminToken) {
+      setLoading(false);
+      return;
+    }
 
     async function fetchConfig() {
       const { data, error } = await supabase
@@ -60,45 +79,48 @@ export default function Admin() {
     }
 
     fetchConfig();
-  }, [authenticated]);
+  }, [adminToken]);
 
   async function handleSave() {
     setSaveState("saving");
     setSaveError("");
 
     try {
-      for (const key in form) {
-        const val = Number(form[key]);
-        if (!Number.isFinite(val) || val < 0) {
-          setSaveState("error");
-          setSaveError(`Geçersiz değer: ${key}`);
-          return;
-        }
+      const payload = {
+        teacher_monthly_salary: form.teacher_monthly_salary,
+        scholarship_monthly: form.scholarship_monthly,
+        ambulance_daily_cost: form.ambulance_daily_cost,
+        school_m2_cost: form.school_m2_cost,
+        school_avg_m2: form.school_avg_m2,
+        hospital_m2_cost: form.hospital_m2_cost,
+        hospital_avg_m2: form.hospital_avg_m2,
+      };
 
-        const { error } = await supabase
-          .from("simulation_config")
-          .upsert({
-            key,
-            value: val,
-            updated_at: new Date().toISOString(),
-          });
+      const res = await fetch("/.netlify/functions/save-config", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${adminToken}`,
+        },
+        body: JSON.stringify(payload),
+      });
 
-        if (error) {
-          setSaveState("error");
-          setSaveError(error.message);
-          return;
-        }
+      const json = await res.json();
+      if (!res.ok || !json.ok) {
+        setSaveState("error");
+        setSaveError(json.error || "Kaydetme başarısız");
+        return;
       }
 
       setSaveState("saved");
       setTimeout(() => setSaveState("idle"), 3000);
     } catch (e) {
       setSaveState("error");
-      setSaveError("Ağ hatası");
+      setSaveError("Network hatası");
     }
   }
 
-  if (!authenticated) {
+  if (!adminToken) {
     return (
       <div
         style={{
@@ -112,33 +134,75 @@ export default function Admin() {
       >
         <div
           style={{
+            maxWidth: 400,
+            width: "100%",
             padding: 32,
             background: "#fff",
             borderRadius: 16,
             boxShadow: "0 6px 18px rgba(0,0,0,0.06)",
-            textAlign: "center",
           }}
         >
-          <div style={{ fontSize: 28, marginBottom: 8 }}>🔒</div>
-          <div style={{ fontWeight: 900, color: BRAND.red }}>Erişim reddedildi</div>
-          <div style={{ marginTop: 8, color: "#666", fontSize: 13 }}>
-            Geçerli bir şifre girilmedi.
+          <div style={{ textAlign: "center", marginBottom: 24 }}>
+            <div style={{ fontSize: 28, marginBottom: 8 }}>🔒</div>
+            <h2 style={{ margin: 0, fontSize: 24, fontWeight: 900, color: BRAND.red }}>
+              Admin Girişi
+            </h2>
           </div>
-          <button
-            onClick={() => window.location.reload()}
+
+          <input
+            type="password"
+            value={passwordInput}
+            onChange={(e) => setPasswordInput(e.target.value)}
+            onKeyPress={(e) => {
+              if (e.key === "Enter") handleLogin();
+            }}
+            placeholder="Şifre"
             style={{
-              marginTop: 16,
-              padding: "10px 20px",
-              borderRadius: 10,
+              width: "100%",
+              boxSizing: "border-box",
+              padding: "12px 14px",
+              marginBottom: 12,
+              borderRadius: 12,
+              border: "1px solid #ddd",
+              fontSize: 16,
+              fontWeight: 600,
+              background: "#fafafa",
+            }}
+          />
+
+          <button
+            onClick={handleLogin}
+            style={{
+              width: "100%",
+              padding: "14px 16px",
+              borderRadius: 14,
               border: "none",
               background: BRAND.red,
               color: "#fff",
-              fontWeight: 800,
+              fontWeight: 900,
               cursor: "pointer",
+              fontSize: 15,
             }}
           >
-            Tekrar dene
+            Giriş Yap
           </button>
+
+          {authError && (
+            <div
+              style={{
+                marginTop: 12,
+                padding: 12,
+                borderRadius: 10,
+                background: "#FEE2E2",
+                color: "#991B1B",
+                fontSize: 13,
+                fontWeight: 600,
+                textAlign: "center",
+              }}
+            >
+              {authError}
+            </div>
+          )}
         </div>
       </div>
     );
@@ -156,12 +220,32 @@ export default function Admin() {
     >
       <div style={{ maxWidth: 600, margin: "0 auto" }}>
         {/* Header */}
-        <div style={{ marginBottom: 20 }}>
-          <div style={{ fontWeight: 800, color: BRAND.red, letterSpacing: 0.2 }}>Diskursi</div>
-          <h1 style={{ margin: "6px 0 4px", fontSize: 24 }}>⚙️ Admin Panel</h1>
-          <p style={{ margin: 0, color: "#555", fontSize: 13 }}>
-            Simülasyon konfigürasyon değerlerini buradan güncelleyebilirsiniz.
-          </p>
+        <div style={{ marginBottom: 20, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <div>
+            <div style={{ fontWeight: 800, color: BRAND.red, letterSpacing: 0.2 }}>Diskursi</div>
+            <h1 style={{ margin: "6px 0 4px", fontSize: 24 }}>⚙️ Admin Panel</h1>
+            <p style={{ margin: 0, color: "#555", fontSize: 13 }}>
+              Simülasyon konfigürasyon değerlerini buradan güncelleyebilirsiniz.
+            </p>
+          </div>
+          <button
+            onClick={() => {
+              sessionStorage.removeItem("adminToken");
+              setAdminToken("");
+            }}
+            style={{
+              padding: "10px 16px",
+              borderRadius: 10,
+              border: "1px solid #ddd",
+              background: "#fff",
+              color: BRAND.text,
+              fontWeight: 700,
+              cursor: "pointer",
+              fontSize: 13,
+            }}
+          >
+            Çıkış Yap
+          </button>
         </div>
 
         {/* Config card */}
