@@ -1800,7 +1800,7 @@ export default function App() {
 
             {savingState === "saved" ? (
               <div style={{ color: "rgba(22,163,74,1)", fontWeight: 700 }}>
-                ✅ Yanıtın kaydedildi (anonim).
+                ✅ Yanıtın anonim olarak kaydedildi.
               </div>
             ) : savingState === "error" ? (
               <div style={{ color: BRAND.orange, fontWeight: 700 }}>
@@ -1873,7 +1873,7 @@ export default function App() {
 
                 {!fairnessAnswered && (
                   <div style={{ marginTop: 8, fontSize: 12, color: BRAND.red, fontWeight: 700 }}>
-                    Devam etmek veya görseli indirmek için lütfen bir puan seç.
+                    Devam etmek veya görseli indirmek için lütfen soruya yanıt ver.
                   </div>
                 )}
 
@@ -2007,7 +2007,7 @@ export default function App() {
 
             <Card>
               <h2 style={{ marginTop: 0, marginBottom: 8, fontSize: 24, fontWeight: 600, color: BRAND.text }}>
-                Sence vergiler nasıl değerlendiriliyor?
+                Sence vergiler nasıl kullanılıyor?
               </h2>
               <p style={{ marginTop: 0, marginBottom: 32, color: BRAND.textMuted, fontSize: 15, lineHeight: 1.6 }}>
                 Sana birkaç sorumuz var. Bu bilgiler tamamen anonimdir. İsim/e-posta/telefon istemiyoruz.
