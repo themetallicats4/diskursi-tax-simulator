@@ -948,6 +948,8 @@ export default function App() {
   const [effectivenessScore, setEffectivenessScore] = useState(5);
   const [trustScore, setTrustScore] = useState(5);
   const [policyPriority, setPolicyPriority] = useState("");
+  const [reactionChoice, setReactionChoice] = useState(null);
+  const [simulationFeedback, setSimulationFeedback] = useState("");
 
   // Results stored after compute
   const [result, setResult] = useState(null);
@@ -2272,6 +2274,76 @@ export default function App() {
                 </div>
               </div>
 
+              {/* Reaction choice - Mini feedback */}
+              <div style={{ marginBottom: 24 }}>
+                <div style={{ fontWeight: 600, fontSize: 16, marginBottom: 12, color: BRAND.text }}>
+                  Bu simülasyon sana ne hissettirdi?
+                </div>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 12 }}>
+                  {[
+                    { key: "surprised", label: "Şaşırdım" },
+                    { key: "expected", label: "Beklediğim gibiydi" },
+                    { key: "too_much", label: "Fazla geldi" },
+                    { key: "too_little", label: "Az geldi" },
+                    { key: "unsure", label: "Emin değilim" },
+                  ].map((opt) => (
+                    <button
+                      key={opt.key}
+                      onClick={() => setReactionChoice(opt.key)}
+                      style={{
+                        padding: 16,
+                        borderRadius: 12,
+                        border: reactionChoice === opt.key ? `2px solid ${BRAND.redDark}` : "1px solid #E5E7EB",
+                        background: reactionChoice === opt.key ? BRAND.stepperBg : "#F9FAFB",
+                        color: reactionChoice === opt.key ? BRAND.redDark : BRAND.text,
+                        fontWeight: reactionChoice === opt.key ? 600 : 400,
+                        cursor: "pointer",
+                        fontSize: 16,
+                        transition: "all 150ms ease",
+                        textAlign: "center",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        minHeight: 56,
+                      }}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Simulation feedback textarea */}
+              <div style={{ marginBottom: 24 }}>
+                <div style={{ fontWeight: 600, fontSize: 16, marginBottom: 12, color: BRAND.text }}>
+                  Geliştirmemiz için kısa bir geri bildirim bırakmak ister misin?
+                </div>
+                <textarea
+                  value={simulationFeedback}
+                  onChange={(e) => setSimulationFeedback(e.target.value)}
+                  placeholder="Kısa bir not yazabilirsin..."
+                  maxLength={300}
+                  style={{
+                    width: "100%",
+                    boxSizing: "border-box",
+                    padding: "16px 20px",
+                    borderRadius: 12,
+                    border: "1px solid #E5E7EB",
+                    background: "#F9FAFB",
+                    fontSize: 16,
+                    fontWeight: 400,
+                    color: BRAND.text,
+                    outline: "none",
+                    resize: "vertical",
+                    minHeight: 100,
+                    fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, Arial",
+                  }}
+                />
+                <div style={{ marginTop: 6, fontSize: 12, color: BRAND.textLight }}>
+                  Bu alan isteğe bağlıdır.
+                </div>
+              </div>
+
               {/* Submit survey */}
               <div style={{ marginTop: 18 }}>
                 <button
@@ -2305,6 +2377,8 @@ export default function App() {
                           effectiveness_score: effectivenessScore,
                           trust_central_gov_score: trustScore,
                           policy_priority: policyPriority,
+                          reaction_choice: reactionChoice || null,
+                          simulation_feedback: simulationFeedback?.trim() || null,
                         }),
                       });
                       const json = await res.json().catch(() => null);
@@ -2360,6 +2434,24 @@ export default function App() {
               }}>
                 Meslek grubun
               </h2>
+
+              {/* Hero image - only on first step */}
+              <div style={{
+                display: "flex",
+                justifyContent: "center",
+                marginBottom: 24,
+              }}>
+                <img
+                  src="/tax_sim_visual.png"
+                  alt="Vergi Simülasyonu"
+                  style={{
+                    width: "100%",
+                    maxWidth: 420,
+                    height: "auto",
+                    borderRadius: 12,
+                  }}
+                />
+              </div>
 
               <div style={{ 
                 display: "grid", 
@@ -2472,7 +2564,7 @@ export default function App() {
                 fontWeight: 600,
                 color: BRAND.text 
               }}>
-                Senin Yılın
+                Temel Gelirlerin
               </h2>
               <p style={{ marginTop: 0, marginBottom: 32, color: BRAND.textMuted, fontSize: 14 }}>
                 Aylık brüt gelirlerini gir

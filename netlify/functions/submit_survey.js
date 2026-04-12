@@ -46,6 +46,8 @@ export async function handler(event) {
             effectiveness_score: payload.effectiveness_score ?? null,
             trust_central_gov_score: payload.trust_central_gov_score ?? null,
             policy_priority: payload.policy_priority ?? null,
+            reaction_choice: payload.reaction_choice ?? null,
+            simulation_feedback: payload.simulation_feedback ?? null,
         };
 
         const { error } = await supabase.from("tax_sim_optional_survey").insert([row]);
