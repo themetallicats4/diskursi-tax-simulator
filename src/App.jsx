@@ -1224,6 +1224,26 @@ export default function App() {
           }}>
             1 dakikada yaklaşık bir tahmin
           </p>
+
+          {/* Hero image - only on first step */}
+          {journeyStep === 1 && step !== "result" && (
+            <div style={{
+              display: "flex",
+              justifyContent: "center",
+              marginTop: 24,
+            }}>
+              <img
+                src="/tax_sim_visual.png"
+                alt="Vergi Simülasyonu"
+                style={{
+                  width: "100%",
+                  maxWidth: 420,
+                  height: "auto",
+                  borderRadius: 12,
+                }}
+              />
+            </div>
+          )}
         </header>
 
         <JourneyProgress step={step === "result" ? 6 : journeyStep} isResult={step === "result"} />
@@ -2434,24 +2454,6 @@ export default function App() {
               }}>
                 Meslek grubun
               </h2>
-
-              {/* Hero image - only on first step */}
-              <div style={{
-                display: "flex",
-                justifyContent: "center",
-                marginBottom: 24,
-              }}>
-                <img
-                  src="/tax_sim_visual.png"
-                  alt="Vergi Simülasyonu"
-                  style={{
-                    width: "100%",
-                    maxWidth: 420,
-                    height: "auto",
-                    borderRadius: 12,
-                  }}
-                />
-              </div>
 
               <div style={{ 
                 display: "grid", 
