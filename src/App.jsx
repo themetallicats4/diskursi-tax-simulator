@@ -326,12 +326,12 @@ function generateShareCardDataUrl(result) {
   canvas.height = H;
   const ctx = canvas.getContext("2d");
 
-  // Background
+  // Background - warm cream
   ctx.fillStyle = BRAND.cream;
   ctx.fillRect(0, 0, W, H);
 
   // Card container
-  const pad = 80;
+  const pad = 60;
   const cardX = pad;
   const cardY = pad;
   const cardW = W - pad * 2;
@@ -349,8 +349,8 @@ function generateShareCardDataUrl(result) {
   }
 
   // Shadow
-  ctx.fillStyle = "rgba(0,0,0,0.10)";
-  roundRect(cardX + 10, cardY + 12, cardW, cardH, 32);
+  ctx.fillStyle = "rgba(0,0,0,0.08)";
+  roundRect(cardX + 8, cardY + 10, cardW, cardH, 32);
   ctx.fill();
 
   // Card
@@ -358,94 +358,79 @@ function generateShareCardDataUrl(result) {
   roundRect(cardX, cardY, cardW, cardH, 32);
   ctx.fill();
 
-  // Header bar
-  ctx.fillStyle = BRAND.red;
-  roundRect(cardX, cardY, cardW, 120, 32);
-  ctx.fill();
-
-  // Diskursi title
-  ctx.fillStyle = "#FFFFFF";
-  ctx.font = "800 46px system-ui, -apple-system, Segoe UI, Roboto, Arial";
-  ctx.fillText("Diskursi", cardX + 44, cardY + 78);
-
-  // Subtitle
-  ctx.fillStyle = "rgba(255,255,255,0.92)";
-  ctx.font = "600 26px system-ui, -apple-system, Segoe UI, Roboto, Arial";
-  ctx.fillText("Vergi Yükü Simülasyonu (yaklaşık)", cardX + 44, cardY + 108);
-
-  // Main numbers
-  const pctText = `%${result.result_tax_pct_min} – %${result.result_tax_pct_max}`;
-  const tlText = `${formatTL(result.result_tl_min)} – ${formatTL(result.result_tl_max)} TL / yıl`;
+  // --- HEADER ---
+  ctx.fillStyle = BRAND.redDark;
+  ctx.font = "900 52px system-ui, -apple-system, Segoe UI, Roboto, Arial";
+  ctx.textAlign = "center";
+  ctx.fillText("Diskursi", W / 2, cardY + 90);
 
   ctx.fillStyle = BRAND.text;
-  ctx.font = "900 86px system-ui, -apple-system, Segoe UI, Roboto, Arial";
-  ctx.fillText(pctText, cardX + 44, cardY + 260);
+  ctx.font = "600 32px system-ui, -apple-system, Segoe UI, Roboto, Arial";
+  ctx.fillText("Vergi Yükü Simülasyonu", W / 2, cardY + 140);
 
-  ctx.fillStyle = "#333";
-  ctx.font = "700 36px system-ui, -apple-system, Segoe UI, Roboto, Arial";
-  ctx.fillText(tlText, cardX + 44, cardY + 320);
+  // --- MAIN TAX RATE RANGE ---
+  const pctText = `%${result.result_tax_pct_min} – %${result.result_tax_pct_max}`;
+  ctx.fillStyle = BRAND.redDark;
+  ctx.font = "900 120px system-ui, -apple-system, Segoe UI, Roboto, Arial";
+  ctx.fillText(pctText, W / 2, cardY + 320);
 
-  // Aha line
+  // --- MONTH VALUE ---
   const monthsMin = Math.round((result.result_tax_pct_min / 100) * 12);
   const monthsMax = Math.round((result.result_tax_pct_max / 100) * 12);
-  const aha = `Bu, yılda yaklaşık ${monthsMin}–${monthsMax} ay "vergiler için çalışmak" gibi.`;
-
-  ctx.fillStyle = BRAND.orange;
-  ctx.font = "800 32px system-ui, -apple-system, Segoe UI, Roboto, Arial";
-  wrapText(ctx, aha, cardX + 44, cardY + 410, cardW - 88, 40);
-
-  // Details box
-  const boxY = cardY + 520;
-  ctx.fillStyle = "rgba(185, 28, 28, 0.08)";
-  roundRect(cardX + 44, boxY, cardW - 88, 340, 22);
-  ctx.fill();
-
-  ctx.fillStyle = BRAND.text;
-  ctx.font = "800 30px system-ui, -apple-system, Segoe UI, Roboto, Arial";
-  ctx.fillText("Girdi özeti", cardX + 72, boxY + 60);
-
-  ctx.fillStyle = "#444";
-  ctx.font = "600 28px system-ui, -apple-system, Segoe UI, Roboto, Arial";
-
-  const lines = [
-    `Aylık brüt maaş: ${formatTL(result.wageGrossMonthly)} TL · Diğer gelir: ${formatTL(result.otherIncomeMonthly)} TL`,
-    `Harcama dağılımı: Gıda ${result.food}%, Kira ${result.rent}%, Ulaşım ${result.transport}%, Diğer ${result.other}%`,
-    `Araba: ${result.hasCar ? "Var" : "Yok"} · Sigara: ${result.smokes ? "Var" : "Yok"} · Alkol: ${result.drinksAlcohol ? "Var" : "Yok"
-    }`,
-  ];
-
-  let y = boxY + 115;
-  for (const line of lines) {
-    wrapText(ctx, line, cardX + 72, y, cardW - 140, 36);
-    y += 74;
+  
+  // Format month text - avoid duplicate ranges like "4–4 ay"
+  let monthText;
+  if (monthsMin === monthsMax) {
+    monthText = `≈ ${monthsMin} ay`;
+  } else {
+    monthText = `≈ ${monthsMin}–${monthsMax} ay`;
   }
 
-  // Footer
+  ctx.fillStyle = BRAND.orange;
+  ctx.font = "800 72px system-ui, -apple-system, Segoe UI, Roboto, Arial";
+  ctx.fillText(monthText, W / 2, cardY + 440);
+
+  // --- SUPPORTING LINE ---
+  ctx.fillStyle = BRAND.text;
+  ctx.font = "600 28px system-ui, -apple-system, Segoe UI, Roboto, Arial";
+  ctx.fillText("Bu, yılda yaklaşık vergiler için çalıştığın süreyi gösterir.", W / 2, cardY + 510);
+
+  // --- GOVERNMENT INFO BLOCK ---
+  const infoBoxY = cardY + 600;
+  const infoBoxH = 240;
+  
+  // Info box background
+  ctx.fillStyle = "rgba(185, 28, 28, 0.06)";
+  roundRect(cardX + 60, infoBoxY, cardW - 120, infoBoxH, 20);
+  ctx.fill();
+
+  // Info box border
+  ctx.strokeStyle = "rgba(185, 28, 28, 0.15)";
+  ctx.lineWidth = 2;
+  roundRect(cardX + 60, infoBoxY, cardW - 120, infoBoxH, 20);
+  ctx.stroke();
+
+  // Main civic info text
+  ctx.fillStyle = BRAND.text;
+  ctx.font = "700 32px system-ui, -apple-system, Segoe UI, Roboto, Arial";
+  ctx.textAlign = "center";
+  ctx.fillText("Devlet gelirlerinin yaklaşık %85'i", W / 2, infoBoxY + 70);
+  ctx.fillText("vergilerden geliyor.", W / 2, infoBoxY + 110);
+
+  // Tax breakdown line
   ctx.fillStyle = "#666";
-  ctx.font = "600 22px system-ui, -apple-system, Segoe UI, Roboto, Arial";
-  ctx.fillText("diskursi · anonim tahmin · v2", cardX + 44, cardY + cardH - 44);
+  ctx.font = "600 26px system-ui, -apple-system, Segoe UI, Roboto, Arial";
+  ctx.fillText("KDV %32.1 · Gelir Vergisi %25.4 · ÖTV %18.2", W / 2, infoBoxY + 170);
+
+  // --- FOOTER ---
+  ctx.fillStyle = "#999";
+  ctx.font = "600 24px system-ui, -apple-system, Segoe UI, Roboto, Arial";
+  ctx.textAlign = "center";
+  ctx.fillText("diskursi.com.tr · yaklaşık tahmin", W / 2, cardY + cardH - 40);
 
   return canvas.toDataURL("image/png");
 }
 
-// helper: wrap text onto multiple lines
-function wrapText(ctx, text, x, y, maxWidth, lineHeight) {
-  const words = text.split(" ");
-  let line = "";
-  for (let n = 0; n < words.length; n++) {
-    const testLine = line + words[n] + " ";
-    const metrics = ctx.measureText(testLine);
-    const testWidth = metrics.width;
-    if (testWidth > maxWidth && n > 0) {
-      ctx.fillText(line, x, y);
-      line = words[n] + " ";
-      y += lineHeight;
-    } else {
-      line = testLine;
-    }
-  }
-  ctx.fillText(line, x, y);
-}
 
 
 function Card({ children }) {
@@ -1199,42 +1184,15 @@ export default function App() {
     >
       <div style={{ maxWidth: 680, margin: "0 auto", padding: "0 8px" }}>
         <header style={{ marginBottom: 32, textAlign: "center" }}>
-          <h1 style={{ 
-            margin: "0 0 8px 0", 
-            fontSize: 32, 
-            fontWeight: 700, 
-            color: BRAND.redDark,
-            letterSpacing: -0.5
-          }}>
-            Diskursi
-          </h1>
-          <h2 style={{ 
-            margin: "0 0 4px 0", 
-            fontSize: 20, 
-            fontWeight: 600,
-            color: BRAND.text
-          }}>
-            Vergi Yükü Simülasyonu
-          </h2>
-          <p style={{ 
-            margin: 0, 
-            color: BRAND.textMuted, 
-            fontSize: 14,
-            lineHeight: 1.5 
-          }}>
-            1 dakikada yaklaşık bir tahmin
-          </p>
-
-          {/* Hero image - only on first step */}
-          {journeyStep === 1 && step !== "result" && (
+          {journeyStep === 1 && step !== "result" ? (
+            // Show hero image on first step only
             <div style={{
               display: "flex",
               justifyContent: "center",
-              marginTop: 24,
             }}>
               <img
                 src="/tax_sim_visual.png"
-                alt="Vergi Simülasyonu"
+                alt="Diskursi Vergi Yükü Simülasyonu"
                 style={{
                   width: "100%",
                   maxWidth: 420,
@@ -1243,6 +1201,35 @@ export default function App() {
                 }}
               />
             </div>
+          ) : (
+            // Show text on all other steps
+            <>
+              <h1 style={{ 
+                margin: "0 0 8px 0", 
+                fontSize: 32, 
+                fontWeight: 700, 
+                color: BRAND.redDark,
+                letterSpacing: -0.5
+              }}>
+                Diskursi
+              </h1>
+              <h2 style={{ 
+                margin: "0 0 4px 0", 
+                fontSize: 20, 
+                fontWeight: 600,
+                color: BRAND.text
+              }}>
+                Vergi Yükü Simülasyonu
+              </h2>
+              <p style={{ 
+                margin: 0, 
+                color: BRAND.textMuted, 
+                fontSize: 14,
+                lineHeight: 1.5 
+              }}>
+                1 dakikada yaklaşık bir tahmin
+              </p>
+            </>
           )}
         </header>
 
@@ -1530,7 +1517,7 @@ export default function App() {
                           marginBottom: 4,
                           fontSize: 14
                         }}>
-                          Öğretmen maaşı
+                          Öğretmen maaşı (aylık)
                         </p>
                         <p style={{ 
                           color: BRAND.highlightText, 
@@ -1572,7 +1559,7 @@ export default function App() {
                           marginBottom: 4,
                           fontSize: 14
                         }}>
-                          Öğrenci bursu
+                          Öğrenci bursu (yıllık)
                         </p>
                         <p style={{ 
                           color: BRAND.highlightText, 
@@ -1614,7 +1601,7 @@ export default function App() {
                           marginBottom: 4,
                           fontSize: 14
                         }}>
-                          Ambulans hizmeti
+                          Ambulans hizmeti (günlük)
                         </p>
                         <p style={{ 
                           color: BRAND.highlightText, 
@@ -1668,10 +1655,19 @@ export default function App() {
                     fontWeight: 600, 
                     color: BRAND.text,
                     marginTop: 0,
-                    marginBottom: 16
+                    marginBottom: 8
                   }}>
-                    1000 kişi olsaydı?
+                    1000 kişi olsaydı? 
                   </h2>
+
+                  <p style={{ 
+                    fontSize: 14, 
+                    color: BRAND.textMuted, 
+                    marginTop: 0,
+                    marginBottom: 16 
+                  }}>
+                    Seninle aynı miktarda vergi ödeyen bin kişi bir araya gelince
+                  </p>
 
                   <div style={{
                     textAlign: "center",
@@ -2341,7 +2337,7 @@ export default function App() {
                 <textarea
                   value={simulationFeedback}
                   onChange={(e) => setSimulationFeedback(e.target.value)}
-                  placeholder="Kısa bir not yazabilirsin..."
+                  placeholder="Geliştirmemiz için fikrini paylaşabilirsin."
                   maxLength={300}
                   style={{
                     width: "100%",
@@ -2360,7 +2356,7 @@ export default function App() {
                   }}
                 />
                 <div style={{ marginTop: 6, fontSize: 12, color: BRAND.textLight }}>
-                  Bu alan isteğe bağlıdır.
+                  
                 </div>
               </div>
 
@@ -3237,7 +3233,7 @@ export default function App() {
         <div style={{ height: 18 }} />
 
         <footer style={{ color: "#777", fontSize: 12, textAlign: "center" }}>
-          Diskursi MVP · "Yaklaşık" simülasyon · v2
+          Diskursi · (Yaklaşık) Vergi Simülasyonu · v2
         </footer>
       </div>
     </div>
